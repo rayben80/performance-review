@@ -1,0 +1,8 @@
+name = "webapp"
+main = "src/index.ts"
+compatibility_date = "2025-08-27"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "./dist"
+
+[env.production]
+name = "webapp-production"

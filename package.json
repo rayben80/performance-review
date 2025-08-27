@@ -1,0 +1,35 @@
+{
+  "name": "webapp",
+  "version": "1.0.0",
+  "description": "클라우드사업본부 업무평가 시스템",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler pages dev dist --ip 0.0.0.0 --port 3000",
+    "dev:sandbox": "wrangler pages dev dist --ip 0.0.0.0 --port 3000",
+    "build": "vite build",
+    "preview": "wrangler pages dev dist",
+    "deploy": "npm run build && wrangler pages deploy dist",
+    "deploy:prod": "npm run build && wrangler pages deploy dist --project-name webapp",
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
+    "clean-port": "fuser -k 3000/tcp 2>/dev/null || true",
+    "test": "curl http://localhost:3000"
+  },
+  "dependencies": {
+    "@cloudflare/workers-types": "^4.20250826.0",
+    "hono": "^4.9.4",
+    "wrangler": "^4.33.0"
+  },
+  "devDependencies": {
+    "@hono/vite-cloudflare-pages": "^0.4.2",
+    "typescript": "^5.9.2",
+    "vite": "^5.4.19"
+  },
+  "keywords": [
+    "performance",
+    "evaluation",
+    "cloudflare"
+  ],
+  "author": "클라우드사업본부",
+  "license": "ISC"
+}
