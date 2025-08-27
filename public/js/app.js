@@ -616,10 +616,32 @@ function updateSelfEvaluationStats() {
     }
 }
 
-// 에러 처리
+// 에러 처리 개선
 window.addEventListener('error', function(event) {
-    console.error('Global error:', event.error);
-    showToast('시스템 오류가 발생했습니다. 페이지를 새로고침해주세요.', 'error');
+    try {
+        if (event && event.error) {
+            console.error('Global error:', event.error);
+        } else {
+            console.error('Unknown error occurred:', event);
+        }
+        
+        // Toast 함수가 존재하는지 확인 후 호출
+        if (typeof showToast === 'function') {
+            showToast('시스템 오류가 발생했습니다. 페이지를 새로고침해주세요.', 'error');
+        }
+    } catch (e) {
+        console.error('Error in error handler:', e);
+    }
+});
+
+// Promise 에러 처리 추가
+window.addEventListener('unhandledrejection', function(event) {
+    try {
+        console.warn('Unhandled promise rejection:', event.reason);
+        event.preventDefault(); // 브라우저 콘솔에 표시되는 것을 방지
+    } catch (e) {
+        console.error('Error in promise rejection handler:', e);
+    }
 });
 
 // 언로드 시 데이터 저장
