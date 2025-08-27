@@ -8,6 +8,7 @@
 ## 🌐 URL
 - **로컬 개발**: http://localhost:3000
 - **공개 URL**: https://3000-i19808c3wj7b5mjo50blk.e2b.dev
+- **GitHub 저장소**: https://github.com/rayben80/performance-review
 
 ## 🔧 핵심 기능
 
@@ -48,7 +49,9 @@ webapp/
 ├── index.html                 # 메인 시스템 (36KB)
 ├── enhanced-settings-ui.js    # 고급 UI/UX 시스템 (28KB)
 ├── ecosystem.config.cjs       # PM2 설정
-├── backup-system.sh           # 백업/복원 도구
+├── backup-system.sh           # 로컬 백업/복원 도구
+├── github-backup.sh          # GitHub 백업/버전 관리 도구  
+├── unified-backup.sh         # 통합 백업 관리 인터페이스
 ├── quick-backup.sh           # 빠른 백업 도구
 ├── backups/                  # 자동 백업 저장소
 └── logs/                     # 서비스 로그
@@ -56,12 +59,63 @@ webapp/
 
 ## 🔄 백업 시스템
 
-### 📦 자동 백업/복원 도구
+### 📦 4-Layer 통합 백업 전략
+1. **Git 버전 관리**: 로컬 커밋 기반 변경사항 추적
+2. **GitHub 원격 백업**: 클라우드 기반 안전한 코드 저장소
+3. **로컬 tar.gz 백업**: 전체 프로젝트 압축 파일 백업
+4. **ProjectBackup**: GenSpark AI 클라우드 저장소 백업
+
+### 🐙 GitHub 백업 도구 (추천)
+
+#### GitHub 백업 명령어
+```bash
+# GitHub 백업 (커밋 + 푸시)
+./github-backup.sh backup "변경사항 설명"
+
+# 버전 태그 생성 (v1.0.0, v1.0.1 등)
+./github-backup.sh version "v1.0.0"
+
+# 안정 버전 생성 (자동 타임스탬프)
+./github-backup.sh stable
+
+# GitHub 버전 목록 확인
+./github-backup.sh versions
+
+# GitHub에서 최신 변경사항 가져오기
+./github-backup.sh pull
+
+# 특정 버전으로 복원
+./github-backup.sh restore "v1.0.0"
+
+# GitHub 완전 동기화
+./github-backup.sh sync
+
+# Git/GitHub 상태 확인
+./github-backup.sh status
+```
+
+### 🎛️ 통합 백업 관리 인터페이스
+```bash
+# 그래픽 메뉴 인터페이스 (추천)
+./unified-backup.sh
+
+# 메뉴를 통해 사용 가능한 기능:
+# - 로컬 백업 관리 (생성/목록/복원)
+# - GitHub 백업 관리 (버전 태그/복원)
+# - 통합 상태 확인
+# - 자동 백업 스케줄링
+# - 백업 정리 및 관리
+```
+
+### 📦 로컬 백업 도구
 
 #### 기본 백업 명령어
 ```bash
-# 현재 상태 백업
+# 현재 상태 백업 (GitHub 푸시 포함)
 ./backup-system.sh backup
+
+# GitHub 전용 도구 사용
+./backup-system.sh github [옵션]
 
 # 백업 목록 확인
 ./backup-system.sh list
@@ -74,9 +128,6 @@ webapp/
 
 # 시스템 상태 확인
 ./backup-system.sh status
-
-# 오래된 백업 정리 (7일 이상)
-./backup-system.sh clean
 ```
 
 #### 빠른 백업 도구
@@ -91,17 +142,44 @@ webapp/
 ./quick-backup.sh rollback  # Git 롤백 (확인 후)
 ```
 
-### 🛡️ 백업 전략
-1. **Git 커밋**: 모든 변경사항을 Git으로 버전 관리
-2. **tar.gz 백업**: 전체 프로젝트를 압축 파일로 백업
-3. **ProjectBackup**: 클라우드 저장소에 안전한 백업 보관
-4. **자동 정리**: 7일 이상 된 백업 자동 삭제
+### 🏷️ 버전 관리 시스템
+- **v1.0.0**: 메이저 릴리스 (주요 기능 완성)
+- **vstable-YYYYMMDD_HHMMSS**: 안정 버전 (검증 완료)
+- **커밋 해시**: 개발 과정 추적
 
-### 🔒 안전 기능
-- **자동 백업**: 복원 전 현재 상태 자동 백업
-- **롤백 보호**: Git 롤백 전 확인 프롬프트
-- **임시 백업**: 복원 실패시 복구 가능한 임시 백업
-- **서비스 재시작**: 백업/복원 후 자동 서비스 재시작
+#### 현재 생성된 버전
+- ✅ **v1.0.0**: 완전 복원 + 백업 시스템
+- ✅ **vstable-20250827_074715**: 안정 검증 버전
+
+### 🛡️ 백업 전략 및 안전 기능
+1. **GitHub 원격 백업**: 코드 손실 완전 방지
+2. **버전 태그**: 특정 시점으로 정확한 복원
+3. **자동 동기화**: GitHub와 로컬 자동 동기화
+4. **충돌 해결**: 자동 병합 및 충돌 처리
+5. **롤백 보호**: 복원 전 현재 상태 자동 백업
+6. **자동 정리**: 7일 이상 된 로컬 백업 자동 삭제
+
+### 🔒 복원 시나리오별 대응
+1. **간단한 변경 취소** → `./github-backup.sh restore "HEAD~1"`
+2. **특정 버전 복원** → `./github-backup.sh restore "v1.0.0"`
+3. **GitHub 동기화** → `./github-backup.sh sync`
+4. **완전한 시스템 복구** → `./github-backup.sh pull`
+5. **응급 복구** → `./unified-backup.sh` (통합 메뉴)
+
+### 🤖 자동 백업 설정
+```bash
+# 통합 백업 도구에서 자동 백업 설정
+./unified-backup.sh
+# → 15) 자동 백업 설정 선택
+# → 매일/매주/사용자정의 스케줄 선택
+
+# 수동 cron 설정 예시
+# 매일 자정 GitHub 백업
+0 0 * * * cd /home/user/webapp && ./github-backup.sh backup "Daily auto backup"
+
+# 매주 일요일 안정 버전 생성
+0 0 * * 0 cd /home/user/webapp && ./github-backup.sh stable
+```
 
 ## 🎯 배포 상태
 - **플랫폼**: Python HTTP Server
