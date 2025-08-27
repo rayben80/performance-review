@@ -51,6 +51,11 @@ function renderOrganizationChart() {
         return;
     }
 
+    if (!emptyMessage) {
+        console.warn('emptyOrgMessage container not found - 설정 탭이 아직 생성되지 않음');
+        return;
+    }
+
     // 조직 데이터가 있는지 확인
     const hasOrgs = Object.keys(organizationData).length > 0;
     
