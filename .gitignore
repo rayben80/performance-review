@@ -1,12 +1,35 @@
+# Dependencies
 node_modules/
-dist/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Compiled binary addons (https://nodejs.org/api/addons.html)
+build
+dist
+
+# dotenv environment variables file
 .env
 .dev.vars
-.wrangler/
+
+# PM2
+.pm2/
+pids/
+logs/
 *.log
-.DS_Store
-.vscode/
+
+# Backup files
 *.backup
 *.bak
 *.tar.gz
 *.zip
+
+# Wrangler
+.wrangler/
+
+# OS generated files
+.DS_Store
+Thumbs.db

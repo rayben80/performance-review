@@ -222,6 +222,7 @@ function handleTabSpecialCases(tabName) {
     switch(tabName) {
         case 'settings':
             // 설정 탭 활성화시 렌더링
+            createSettingsContent();
             renderSettings();
             updateEvaluationCounts();
             break;
@@ -231,15 +232,16 @@ function handleTabSpecialCases(tabName) {
             break;
         case 'evaluation':
             // 평가 폼 로드
-            loadEvaluationForm();
+            createEvaluationContent();
             break;
         case 'selfEvaluation':
             // 자기평가 폼 생성
+            createSelfEvaluationContent();
             generateSelfEvaluationForm();
             break;
         case 'reports':
             // 리포트 테이블 생성
-            generateReportTable();
+            createReportsContent();
             break;
     }
 }
@@ -596,6 +598,229 @@ function isAdmin() {
 // 현재 사용자 정보 반환
 function getCurrentUser() {
     return { ...currentUser }; // 복사본 반환
+}
+
+// 설정 탭 콘텐츠 생성
+function createSettingsContent() {
+    const settingsTab = document.getElementById('settings');
+    if (settingsTab && settingsTab.innerHTML.trim() === '') {
+        settingsTab.innerHTML = `
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 mb-2">설정 관리</h2>
+                <p class="text-gray-600">평가 항목과 조직도를 관리하세요</p>
+            </div>
+            
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                <!-- 평가 항목 설정 -->
+                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-900">평가 항목 관리</h3>
+                        <button onclick="addEvaluationItemByType()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm">
+                            <i class="fas fa-plus mr-2"></i>항목 추가
+                        </button>
+                    </div>
+                    
+                    <!-- 평가 유형 탭 -->
+                    <div class="flex border-b border-gray-200 mb-4">
+                        <button onclick="switchEvaluationType('quantitative')" 
+                                id="quantitativeTab" 
+                                class="eval-type-tab px-4 py-2 text-sm font-medium text-gray-600 border-b-2 border-transparent hover:text-gray-900 active">
+                            📊 정량평가
+                        </button>
+                        <button onclick="switchEvaluationType('qualitative')" 
+                                id="qualitativeTab" 
+                                class="eval-type-tab px-4 py-2 text-sm font-medium text-gray-600 border-b-2 border-transparent hover:text-gray-900">
+                            📝 정성평가
+                        </button>
+                    </div>
+                    
+                    <!-- 현재 평가 유형 표시 -->
+                    <div class="mb-4">
+                        <h4 id="currentEvalType" class="font-medium text-gray-900">정량평가 항목</h4>
+                        <span class="text-sm text-gray-600">점수 기반 객관적 평가</span>
+                        <div class="flex space-x-4 mt-2 text-sm">
+                            <span>정량평가: <span id="quantitativeCount" class="font-medium">0개</span></span>
+                            <span>정성평가: <span id="qualitativeCount" class="font-medium">0개</span></span>
+                        </div>
+                    </div>
+                    
+                    <!-- 평가 항목 목록 -->
+                    <div id="evaluationItems" class="space-y-3">
+                        <!-- 동적으로 생성됨 -->
+                    </div>
+                </div>
+                
+                <!-- 조직도 관리 -->
+                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900">조직도 관리</h3>
+                            <p class="text-sm text-gray-600 mt-1">엑셀 업로드 또는 수동 입력으로 조직을 관리하세요</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="downloadOrgTemplate()" class="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm">
+                                <i class="fas fa-download mr-2"></i>템플릿 다운로드
+                            </button>
+                            <button onclick="downloadCurrentOrg()" class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm">
+                                <i class="fas fa-file-excel mr-2"></i>현재 조직도 다운로드
+                            </button>
+                            <label for="orgFileUpload" class="px-3 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors text-sm cursor-pointer">
+                                <i class="fas fa-upload mr-2"></i>엑셀 업로드
+                            </label>
+                            <input type="file" id="orgFileUpload" accept=".xlsx,.xls" style="display: none;" onchange="uploadOrgChart(this)">
+                        </div>
+                    </div>
+
+                    <!-- 조직 관리 탭 -->
+                    <div class="border-b border-gray-200 mb-4">
+                        <nav class="-mb-px flex space-x-8">
+                            <button onclick="switchOrgMode('excel')" 
+                                    id="excelModeTab" 
+                                    class="org-mode-tab py-2 px-1 border-b-2 border-blue-500 font-medium text-sm text-blue-600">
+                                📊 엑셀 관리
+                            </button>
+                            <button onclick="switchOrgMode('manual')" 
+                                    id="manualModeTab" 
+                                    class="org-mode-tab py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                                ✍️ 수동 입력
+                            </button>
+                        </nav>
+                    </div>
+
+                    <!-- Excel Mode -->
+                    <div id="excelMode" class="org-mode-content">
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                            <h5 class="text-sm font-medium text-blue-900 mb-2">📋 엑셀 업로드 가이드</h5>
+                            <ul class="text-sm text-blue-800 space-y-1">
+                                <li>• <strong>템플릿 다운로드</strong>: 빈 조직도 템플릿을 받아 작성하세요</li>
+                                <li>• <strong>현재 조직도 다운로드</strong>: 기존 데이터가 포함된 엑셀 파일을 받아 수정하세요</li>
+                                <li>• <strong>필수 컬럼</strong>: 부서, 팀, 파트, 이름, 직급, 이메일</li>
+                                <li>• <strong>파일 형식</strong>: .xlsx 또는 .xls 파일만 지원</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Manual Mode -->
+                    <div id="manualMode" class="org-mode-content" style="display: none;">
+                        <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                            <h5 class="text-sm font-medium text-green-900 mb-3">✍️ 수동 조직도 입력</h5>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <button onclick="showAddDepartmentModal()" 
+                                        class="flex items-center justify-center px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                    <i class="fas fa-building mr-2"></i>부서 추가
+                                </button>
+                                <button onclick="showAddTeamModal()" 
+                                        class="flex items-center justify-center px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                                    <i class="fas fa-users mr-2"></i>팀 추가
+                                </button>
+                                <button onclick="showAddMemberModal()" 
+                                        class="flex items-center justify-center px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                                    <i class="fas fa-user-plus mr-2"></i>구성원 추가
+                                </button>
+                            </div>
+                            <div class="mt-3 text-sm text-green-700">
+                                <p>• 부서 → 팀 → 구성원 순서로 생성하는 것을 권장합니다</p>
+                                <p>• 각 항목을 클릭하면 상세 입력 폼이 나타납니다</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 조직도 표시 -->
+                    <div id="organizationChart" class="bg-gray-50 rounded-lg p-4 border border-gray-200 mb-4">
+                        <div id="orgChartList" class="space-y-3">
+                            <!-- 조직도가 동적으로 표시됩니다 -->
+                        </div>
+                        <div id="emptyOrgMessage" class="text-center text-gray-500 py-8">
+                            <i class="fas fa-sitemap text-4xl mb-4 opacity-50"></i>
+                            <p>조직도를 구성해보세요.</p>
+                            <p class="text-sm">엑셀 업로드 또는 수동 입력으로 시작하세요!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// 다른 탭들의 콘텐츠 생성 함수들
+function createEvaluationContent() {
+    const evalTab = document.getElementById('evaluation');
+    if (evalTab && evalTab.innerHTML.trim() === '') {
+        evalTab.innerHTML = `
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 mb-2">타인 평가</h2>
+                <p class="text-gray-600">팀원들을 평가해주세요</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                <p class="text-gray-600">타인 평가 기능은 현재 개발 중입니다.</p>
+            </div>
+        `;
+    }
+}
+
+function createSelfEvaluationContent() {
+    const selfEvalTab = document.getElementById('selfEvaluation');
+    if (selfEvalTab && selfEvalTab.innerHTML.trim() === '') {
+        selfEvalTab.innerHTML = `
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 mb-2">자기 평가</h2>
+                <p class="text-gray-600">자신의 성과를 평가해주세요</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">자기평가 작성</h3>
+                    <div class="flex space-x-2">
+                        <button onclick="saveSelfEvaluationDraft()" class="px-4 py-2 text-blue-600 border border-blue-600 rounded-md hover:bg-blue-50 transition-colors">
+                            <i class="fas fa-save mr-2"></i>임시저장
+                        </button>
+                        <button onclick="previewSelfEvaluation()" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
+                            <i class="fas fa-eye mr-2"></i>미리보기
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="evaluationStats" class="mb-6">
+                    <!-- 평가 통계가 동적으로 표시됩니다 -->
+                </div>
+                
+                <div id="selfEvaluationItems" class="space-y-6">
+                    <!-- 동적으로 평가 항목들이 생성됩니다 -->
+                </div>
+            </div>
+        `;
+    }
+}
+
+function createReportsContent() {
+    const reportsTab = document.getElementById('reports');
+    if (reportsTab && reportsTab.innerHTML.trim() === '') {
+        reportsTab.innerHTML = `
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 mb-2">평가 결과</h2>
+                <p class="text-gray-600">평가 결과를 확인하고 분석하세요</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                <p class="text-gray-600">평가 결과 기능은 현재 개발 중입니다.</p>
+            </div>
+        `;
+    }
+}
+
+// 더미 함수들 (실제 구현은 필요시 추가)
+function loadEvaluationForm() {
+    console.log('평가 폼 로드');
+}
+
+function generateReportTable() {
+    console.log('리포트 테이블 생성');
+}
+
+function saveSelfEvaluationDraft() {
+    showToast('임시저장 기능은 준비 중입니다.', 'info');
+}
+
+function previewSelfEvaluation() {
+    showToast('미리보기 기능은 준비 중입니다.', 'info');
 }
 
 console.log('✅ 메인 애플리케이션이 로드되었습니다.');
