@@ -85,12 +85,34 @@
                         <h1 class="text-2xl font-bold text-gray-900">클라우드사업본부 업무평가 시스템</h1>
                     </div>
                     <div class="flex items-center space-x-4">
+                        <!-- User Role Selector -->
+                        <div class="text-sm text-gray-600">
+                            <select id="userRoleSelect" onchange="switchUserRole()" class="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="admin">👨‍💼 관리자 (Admin)</option>
+                                <option value="employee">👤 팀원 (Employee)</option>
+                            </select>
+                        </div>
                         <div class="text-sm text-gray-600">
                             <span id="currentUser">관리자</span>
                         </div>
-                        <button class="text-gray-500 hover:text-gray-700">
+                        <button onclick="showUserMenu()" class="text-gray-500 hover:text-gray-700 relative">
                             <i class="fas fa-user-circle text-xl"></i>
                         </button>
+                        <!-- User Menu Dropdown -->
+                        <div id="userMenu" class="hidden absolute right-0 top-full mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+                            <div class="py-1">
+                                <a href="#" onclick="showUserProfile()" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-user mr-2"></i>프로필
+                                </a>
+                                <a href="#" onclick="showUserSettings()" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-cog mr-2"></i>설정
+                                </a>
+                                <div class="border-t border-gray-100"></div>
+                                <a href="#" onclick="logout()" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">
+                                    <i class="fas fa-sign-out-alt mr-2"></i>로그아웃
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -106,8 +128,11 @@
                     <button onclick="showTab('settings')" class="tab-button px-6 py-3 text-sm font-medium text-gray-600 hover:text-gray-900 border-b-2 border-transparent transition-colors">
                         <i class="fas fa-cog mr-2"></i>설정
                     </button>
-                    <button onclick="showTab('evaluation')" class="tab-button px-6 py-3 text-sm font-medium text-gray-600 hover:text-gray-900 border-b-2 border-transparent transition-colors">
-                        <i class="fas fa-clipboard-check mr-2"></i>평가
+                    <button onclick="showTab('evaluation')" class="tab-button px-6 py-3 text-sm font-medium text-gray-600 hover:text-gray-900 border-b-2 border-transparent transition-colors" id="evaluationTab">
+                        <i class="fas fa-clipboard-check mr-2"></i>평가 관리
+                    </button>
+                    <button onclick="showTab('self-evaluation')" class="tab-button px-6 py-3 text-sm font-medium text-gray-600 hover:text-gray-900 border-b-2 border-transparent transition-colors" id="selfEvaluationTab" style="display: none;">
+                        <i class="fas fa-user-check mr-2"></i>자기평가
                     </button>
                     <button onclick="showTab('reports')" class="tab-button px-6 py-3 text-sm font-medium text-gray-600 hover:text-gray-900 border-b-2 border-transparent transition-colors">
                         <i class="fas fa-chart-bar mr-2"></i>보고서
@@ -317,6 +342,196 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Self Evaluation Tab -->
+            <div id="self-evaluation" class="tab-content">
+                <!-- Welcome Section -->
+                <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 mb-6 border border-blue-200">
+                    <div class="flex items-center space-x-4">
+                        <div class="bg-blue-100 p-3 rounded-full">
+                            <i class="fas fa-user-check text-blue-600 text-2xl"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-semibold text-blue-900">자기평가</h2>
+                            <p class="text-blue-700 mt-1">본인의 성과를 스스로 평가해보세요. 솔직하고 객관적인 평가가 중요합니다.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Current Evaluation Status -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-green-100 rounded-md">
+                                <i class="fas fa-check-circle text-green-600 text-xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-600">완료된 평가</p>
+                                <p class="text-2xl font-semibold text-gray-900" id="selfCompletedCount">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-yellow-100 rounded-md">
+                                <i class="fas fa-clock text-yellow-600 text-xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-600">대기중인 평가</p>
+                                <p class="text-2xl font-semibold text-gray-900" id="selfPendingCount">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-blue-100 rounded-md">
+                                <i class="fas fa-percentage text-blue-600 text-xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-600">평가 진행률</p>
+                                <p class="text-2xl font-semibold text-gray-900" id="selfProgressPercent">0%</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Evaluation Period Selection -->
+                <div class="bg-white rounded-lg shadow mb-6">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-medium text-gray-900">평가 기간 선택</h3>
+                    </div>
+                    <div class="p-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">평가 유형</label>
+                                <select id="evaluationPeriod" onchange="loadSelfEvaluationPeriod()" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">평가 기간을 선택하세요</option>
+                                    <option value="2025-q1">2025년 1분기 평가</option>
+                                    <option value="2025-q2">2025년 2분기 평가</option>
+                                    <option value="2025-annual">2025년 연간 평가</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">마감일</label>
+                                <input type="date" id="evaluationDeadline" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" readonly>
+                            </div>
+                        </div>
+                        
+                        <!-- Deadline Alert -->
+                        <div id="deadlineAlert" class="mt-4 hidden">
+                            <div class="bg-red-50 border border-red-200 rounded-md p-4">
+                                <div class="flex">
+                                    <i class="fas fa-exclamation-triangle text-red-500 mt-0.5 mr-2"></i>
+                                    <div class="text-red-700">
+                                        <strong>마감 임박!</strong>
+                                        <span id="deadlineText">평가 마감까지 얼마 남지 않았습니다.</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Self Evaluation Form -->
+                <div id="selfEvaluationForm" class="bg-white rounded-lg shadow" style="display: none;">
+                    <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                        <h3 class="text-lg font-medium text-gray-900">자기평가 양식</h3>
+                        <div class="flex space-x-2">
+                            <button onclick="saveSelfEvaluationDraft()" class="px-4 py-2 text-blue-600 border border-blue-600 rounded-md hover:bg-blue-50 transition-colors">
+                                <i class="fas fa-save mr-2"></i>임시저장
+                            </button>
+                            <button onclick="previewSelfEvaluation()" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
+                                <i class="fas fa-eye mr-2"></i>미리보기
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <!-- Instructions -->
+                        <div class="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
+                            <h4 class="font-medium text-blue-900 mb-2">
+                                <i class="fas fa-info-circle mr-2"></i>평가 안내
+                            </h4>
+                            <ul class="text-sm text-blue-800 space-y-1">
+                                <li>• 각 항목별로 1-100점 범위에서 점수를 매겨주세요</li>
+                                <li>• 점수에 대한 구체적인 근거와 사례를 작성해주세요</li>
+                                <li>• 개선이 필요한 부분과 향후 계획을 포함해주세요</li>
+                                <li>• 임시저장 기능을 활용하여 여러 번에 걸쳐 작성할 수 있습니다</li>
+                            </ul>
+                        </div>
+
+                        <!-- Evaluation Items -->
+                        <div id="selfEvaluationItems" class="space-y-6">
+                            <!-- 동적으로 평가 항목들이 생성됩니다 -->
+                        </div>
+
+                        <!-- Overall Self Assessment -->
+                        <div class="mt-8 pt-6 border-t border-gray-200">
+                            <h4 class="text-md font-medium text-gray-900 mb-4">종합 자기평가</h4>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">주요 성과 및 기여사항</label>
+                                    <textarea id="selfMajorAchievements" 
+                                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                              rows="4" 
+                                              placeholder="이번 평가 기간 중 달성한 주요 성과와 팀/회사에 기여한 부분을 구체적으로 작성해주세요..."></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">개선이 필요한 영역</label>
+                                    <textarea id="selfImprovementAreas" 
+                                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                              rows="4" 
+                                              placeholder="개선이 필요하다고 생각하는 영역과 그 이유를 솔직하게 작성해주세요..."></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">향후 목표 및 계획</label>
+                                    <textarea id="selfFutureGoals" 
+                                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                              rows="4" 
+                                              placeholder="다음 평가 기간까지의 목표와 구체적인 실행 계획을 작성해주세요..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="mt-8 pt-6 border-t border-gray-200 flex justify-between">
+                            <div class="text-sm text-gray-500">
+                                <i class="fas fa-save mr-1"></i>
+                                <span id="lastSavedTime">아직 저장되지 않음</span>
+                            </div>
+                            <div class="space-x-3">
+                                <button onclick="resetSelfEvaluation()" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
+                                    <i class="fas fa-undo mr-2"></i>초기화
+                                </button>
+                                <button onclick="saveSelfEvaluationDraft()" class="px-4 py-2 text-blue-600 border border-blue-600 rounded-md hover:bg-blue-50 transition-colors">
+                                    <i class="fas fa-save mr-2"></i>임시저장
+                                </button>
+                                <button onclick="submitSelfEvaluation()" class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                                    <i class="fas fa-paper-plane mr-2"></i>평가 제출
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Previous Evaluations -->
+                <div class="bg-white rounded-lg shadow">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-medium text-gray-900">이전 자기평가 기록</h3>
+                    </div>
+                    <div class="p-6">
+                        <div id="previousSelfEvaluations" class="space-y-4">
+                            <!-- 이전 평가 기록들이 동적으로 표시됩니다 -->
+                            <div class="text-center text-gray-500 py-8">
+                                <i class="fas fa-history text-4xl mb-4 opacity-50"></i>
+                                <p>아직 완료된 자기평가가 없습니다.</p>
+                                <p class="text-sm">첫 번째 자기평가를 작성해보세요!</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -329,6 +544,10 @@
         let evaluationItems = [];
         let teamData = {};
         let evaluationData = [];
+        let currentUserRole = 'admin';
+        let currentEmployee = null;
+        let selfEvaluationData = {};
+        let selfEvaluationDrafts = {};
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
@@ -337,7 +556,10 @@
 
         function initializeApp() {
             loadData();
-            showTab('overview');
+            
+            // Initialize user role
+            switchUserRole();
+            
             updateOverviewStats();
             renderSettings();
         }
@@ -373,6 +595,8 @@
                 generateAnalysis();
             } else if (tabName === 'evaluation') {
                 loadEvaluationForm();
+            } else if (tabName === 'self-evaluation') {
+                loadSelfEvaluationTab();
             }
         }
 
@@ -848,6 +1072,528 @@
                     }
                 }
             });
+        }
+
+        // User Role Management
+        function switchUserRole() {
+            const roleSelect = document.getElementById('userRoleSelect');
+            currentUserRole = roleSelect.value;
+            
+            // Update current user display
+            const currentUserSpan = document.getElementById('currentUser');
+            if (currentUserRole === 'admin') {
+                currentUserSpan.textContent = '관리자';
+                showAdminTabs();
+            } else {
+                // 실제로는 로그인된 사용자 정보를 가져와야 합니다
+                currentEmployee = {
+                    id: 1,
+                    name: '김철수',
+                    team: '개발팀',
+                    position: '선임개발자'
+                };
+                currentUserSpan.textContent = currentEmployee.name;
+                showEmployeeTabs();
+            }
+            
+            // Switch to appropriate tab
+            if (currentUserRole === 'admin') {
+                showTab('overview');
+            } else {
+                showTab('self-evaluation');
+            }
+        }
+
+        function showAdminTabs() {
+            // Show admin tabs
+            const tabs = ['overview', 'settings', 'evaluation', 'reports', 'analysis'];
+            tabs.forEach(tab => {
+                const button = document.querySelector(`[onclick="showTab('${tab}')"]`);
+                if (button) button.style.display = 'block';
+            });
+            
+            // Hide employee tabs
+            document.getElementById('selfEvaluationTab').style.display = 'none';
+        }
+
+        function showEmployeeTabs() {
+            // Hide admin tabs
+            const tabs = ['settings', 'evaluation', 'reports', 'analysis'];
+            tabs.forEach(tab => {
+                const button = document.querySelector(`[onclick="showTab('${tab}')"]`);
+                if (button) button.style.display = 'none';
+            });
+            
+            // Show employee tabs
+            document.getElementById('selfEvaluationTab').style.display = 'block';
+            
+            // Keep overview visible for basic stats
+            const overviewTab = document.querySelector(`[onclick="showTab('overview')"]`);
+            if (overviewTab) overviewTab.style.display = 'block';
+        }
+
+        // User Menu Functions
+        function showUserMenu() {
+            const menu = document.getElementById('userMenu');
+            menu.classList.toggle('hidden');
+        }
+
+        function showUserProfile() {
+            alert('프로필 페이지는 향후 구현 예정입니다.');
+            document.getElementById('userMenu').classList.add('hidden');
+        }
+
+        function showUserSettings() {
+            alert('사용자 설정 페이지는 향후 구현 예정입니다.');
+            document.getElementById('userMenu').classList.add('hidden');
+        }
+
+        function logout() {
+            if (confirm('로그아웃 하시겠습니까?')) {
+                // 실제로는 서버 로그아웃 처리
+                currentUserRole = 'admin';
+                document.getElementById('userRoleSelect').value = 'admin';
+                switchUserRole();
+            }
+            document.getElementById('userMenu').classList.add('hidden');
+        }
+
+        // Close user menu when clicking outside
+        document.addEventListener('click', function(e) {
+            const menu = document.getElementById('userMenu');
+            const button = e.target.closest('[onclick="showUserMenu()"]');
+            if (!button && !menu.contains(e.target)) {
+                menu.classList.add('hidden');
+            }
+        });
+
+        // Self Evaluation Functions
+        function loadSelfEvaluationPeriod() {
+            const period = document.getElementById('evaluationPeriod').value;
+            
+            if (!period) {
+                document.getElementById('selfEvaluationForm').style.display = 'none';
+                return;
+            }
+            
+            // Set deadline based on period
+            const deadlines = {
+                '2025-q1': '2025-04-15',
+                '2025-q2': '2025-07-15', 
+                '2025-annual': '2025-01-31'
+            };
+            
+            document.getElementById('evaluationDeadline').value = deadlines[period] || '';
+            
+            // Check deadline proximity
+            checkDeadlineProximity(deadlines[period]);
+            
+            // Load evaluation form
+            document.getElementById('selfEvaluationForm').style.display = 'block';
+            generateSelfEvaluationForm();
+            loadSelfEvaluationDraft(period);
+        }
+
+        function checkDeadlineProximity(deadline) {
+            if (!deadline) return;
+            
+            const deadlineDate = new Date(deadline);
+            const now = new Date();
+            const daysUntilDeadline = Math.ceil((deadlineDate - now) / (1000 * 60 * 60 * 24));
+            
+            const alert = document.getElementById('deadlineAlert');
+            const text = document.getElementById('deadlineText');
+            
+            if (daysUntilDeadline <= 7) {
+                alert.classList.remove('hidden');
+                if (daysUntilDeadline <= 0) {
+                    text.textContent = '평가 마감일이 지났습니다!';
+                } else if (daysUntilDeadline === 1) {
+                    text.textContent = '평가 마감까지 1일 남았습니다!';
+                } else {
+                    text.textContent = `평가 마감까지 ${daysUntilDeadline}일 남았습니다.`;
+                }
+            } else {
+                alert.classList.add('hidden');
+            }
+        }
+
+        function generateSelfEvaluationForm() {
+            const container = document.getElementById('selfEvaluationItems');
+            container.innerHTML = '';
+
+            evaluationItems.forEach((item, index) => {
+                const itemElement = createSelfEvaluationItem(item, index);
+                container.appendChild(itemElement);
+            });
+
+            updateSelfEvaluationStats();
+        }
+
+        function createSelfEvaluationItem(item, index) {
+            const div = document.createElement('div');
+            div.className = 'bg-gray-50 p-6 rounded-lg border border-gray-200';
+
+            div.innerHTML = `
+                <div class="flex items-start justify-between mb-4">
+                    <div>
+                        <h5 class="text-lg font-medium text-gray-900">${item.name}</h5>
+                        <p class="text-sm text-gray-600">가중치: ${item.weight}%</p>
+                        ${item.description ? `<p class="text-sm text-gray-500 mt-1">${item.description}</p>` : ''}
+                    </div>
+                    <div class="text-right">
+                        <div class="text-2xl font-bold text-blue-600" id="selfScore_${item.id}">0</div>
+                        <div class="text-xs text-gray-500">점</div>
+                    </div>
+                </div>
+                
+                <div class="space-y-4">
+                    <!-- Score Input -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">자기평가 점수 (1-100)</label>
+                        <div class="flex items-center space-x-4">
+                            <input type="range" 
+                                   id="selfRange_${item.id}" 
+                                   min="1" 
+                                   max="100" 
+                                   value="50" 
+                                   class="flex-1"
+                                   oninput="updateSelfScore(${item.id}, this.value)">
+                            <input type="number" 
+                                   id="selfNumber_${item.id}" 
+                                   min="1" 
+                                   max="100" 
+                                   value="50" 
+                                   class="w-20 px-3 py-2 border border-gray-300 rounded-md text-center"
+                                   onchange="updateSelfScore(${item.id}, this.value)">
+                        </div>
+                    </div>
+                    
+                    <!-- Self Assessment Text -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">자기평가 내용</label>
+                        <textarea id="selfText_${item.id}" 
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  rows="3" 
+                                  placeholder="이 항목에 대한 본인의 성과와 근거를 구체적으로 작성해주세요..."></textarea>
+                    </div>
+                    
+                    <!-- Evidence/Examples -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">구체적 사례 및 증거</label>
+                        <textarea id="selfEvidence_${item.id}" 
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  rows="2" 
+                                  placeholder="점수를 뒷받침하는 구체적인 사례나 성과물을 작성해주세요..."></textarea>
+                    </div>
+                </div>
+            `;
+
+            return div;
+        }
+
+        function updateSelfScore(itemId, score) {
+            score = Math.max(1, Math.min(100, parseInt(score) || 1));
+            
+            // Update displays
+            document.getElementById(`selfScore_${itemId}`).textContent = score;
+            document.getElementById(`selfRange_${itemId}`).value = score;
+            document.getElementById(`selfNumber_${itemId}`).value = score;
+            
+            // Auto-save
+            autoSaveSelfEvaluation();
+        }
+
+        function updateSelfEvaluationStats() {
+            // 실제로는 현재 사용자의 평가 데이터를 기반으로 계산
+            const totalItems = evaluationItems.length;
+            const completedItems = 0; // 실제 완료된 항목 수
+            const progress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+            
+            document.getElementById('selfCompletedCount').textContent = completedItems;
+            document.getElementById('selfPendingCount').textContent = totalItems - completedItems;
+            document.getElementById('selfProgressPercent').textContent = `${progress}%`;
+        }
+
+        function saveSelfEvaluationDraft() {
+            const period = document.getElementById('evaluationPeriod').value;
+            if (!period) {
+                alert('평가 기간을 선택해주세요.');
+                return;
+            }
+            
+            const draft = collectSelfEvaluationData();
+            selfEvaluationDrafts[period] = draft;
+            localStorage.setItem('selfEvaluationDrafts', JSON.stringify(selfEvaluationDrafts));
+            
+            // Update last saved time
+            const now = new Date().toLocaleString('ko-KR');
+            document.getElementById('lastSavedTime').textContent = `마지막 저장: ${now}`;
+            
+            // Show success message
+            showToast('평가가 임시저장되었습니다.', 'success');
+        }
+
+        function loadSelfEvaluationDraft(period) {
+            const savedDrafts = localStorage.getItem('selfEvaluationDrafts');
+            if (savedDrafts) {
+                selfEvaluationDrafts = JSON.parse(savedDrafts);
+                const draft = selfEvaluationDrafts[period];
+                
+                if (draft) {
+                    // Load scores and texts
+                    if (draft.items) {
+                        Object.keys(draft.items).forEach(itemId => {
+                            const itemData = draft.items[itemId];
+                            if (itemData.score) {
+                                updateSelfScore(itemId, itemData.score);
+                            }
+                            if (itemData.text) {
+                                const textArea = document.getElementById(`selfText_${itemId}`);
+                                if (textArea) textArea.value = itemData.text;
+                            }
+                            if (itemData.evidence) {
+                                const evidenceArea = document.getElementById(`selfEvidence_${itemId}`);
+                                if (evidenceArea) evidenceArea.value = itemData.evidence;
+                            }
+                        });
+                    }
+                    
+                    // Load overall assessment
+                    if (draft.overall) {
+                        const achievements = document.getElementById('selfMajorAchievements');
+                        const improvements = document.getElementById('selfImprovementAreas');
+                        const goals = document.getElementById('selfFutureGoals');
+                        
+                        if (achievements) achievements.value = draft.overall.achievements || '';
+                        if (improvements) improvements.value = draft.overall.improvements || '';
+                        if (goals) goals.value = draft.overall.goals || '';
+                    }
+                    
+                    // Update last saved time
+                    if (draft.savedAt) {
+                        document.getElementById('lastSavedTime').textContent = `마지막 저장: ${draft.savedAt}`;
+                    }
+                }
+            }
+        }
+
+        function collectSelfEvaluationData() {
+            const data = {
+                items: {},
+                overall: {
+                    achievements: document.getElementById('selfMajorAchievements')?.value || '',
+                    improvements: document.getElementById('selfImprovementAreas')?.value || '',
+                    goals: document.getElementById('selfFutureGoals')?.value || ''
+                },
+                savedAt: new Date().toLocaleString('ko-KR')
+            };
+            
+            evaluationItems.forEach(item => {
+                const scoreElement = document.getElementById(`selfNumber_${item.id}`);
+                const textElement = document.getElementById(`selfText_${item.id}`);
+                const evidenceElement = document.getElementById(`selfEvidence_${item.id}`);
+                
+                data.items[item.id] = {
+                    score: scoreElement?.value || 50,
+                    text: textElement?.value || '',
+                    evidence: evidenceElement?.value || ''
+                };
+            });
+            
+            return data;
+        }
+
+        function autoSaveSelfEvaluation() {
+            // Auto-save every 30 seconds when user is typing
+            clearTimeout(window.autoSaveTimeout);
+            window.autoSaveTimeout = setTimeout(() => {
+                saveSelfEvaluationDraft();
+            }, 30000);
+        }
+
+        function previewSelfEvaluation() {
+            const data = collectSelfEvaluationData();
+            // 실제로는 미리보기 모달이나 새 탭에서 보여줄 수 있습니다
+            alert('미리보기 기능은 향후 구현 예정입니다.');
+        }
+
+        function submitSelfEvaluation() {
+            const period = document.getElementById('evaluationPeriod').value;
+            if (!period) {
+                alert('평가 기간을 선택해주세요.');
+                return;
+            }
+            
+            // 모든 항목이 작성되었는지 검증
+            let isComplete = true;
+            let missingItems = [];
+            
+            evaluationItems.forEach(item => {
+                const textElement = document.getElementById(`selfText_${item.id}`);
+                if (!textElement?.value.trim()) {
+                    isComplete = false;
+                    missingItems.push(item.name);
+                }
+            });
+            
+            if (!isComplete) {
+                alert(`다음 항목의 자기평가 내용을 작성해주세요:\n${missingItems.join('\n')}`);
+                return;
+            }
+            
+            // 최종 확인
+            if (!confirm('자기평가를 제출하시겠습니까?\n제출 후에는 수정할 수 없습니다.')) {
+                return;
+            }
+            
+            // 데이터 수집 및 저장
+            const evaluationData = {
+                ...collectSelfEvaluationData(),
+                period: period,
+                employeeId: currentEmployee?.id,
+                employeeName: currentEmployee?.name,
+                submittedAt: new Date().toISOString(),
+                status: 'submitted'
+            };
+            
+            // 실제로는 서버에 제출
+            selfEvaluationData[period] = evaluationData;
+            localStorage.setItem('selfEvaluationData', JSON.stringify(selfEvaluationData));
+            
+            // 임시저장 데이터 삭제
+            delete selfEvaluationDrafts[period];
+            localStorage.setItem('selfEvaluationDrafts', JSON.stringify(selfEvaluationDrafts));
+            
+            showToast('자기평가가 성공적으로 제출되었습니다!', 'success');
+            
+            // 폼 초기화
+            document.getElementById('evaluationPeriod').value = '';
+            document.getElementById('selfEvaluationForm').style.display = 'none';
+            
+            // 이전 평가 목록 업데이트
+            loadPreviousSelfEvaluations();
+        }
+
+        function resetSelfEvaluation() {
+            if (!confirm('작성 중인 자기평가를 초기화하시겠습니까?\n저장되지 않은 내용은 모두 사라집니다.')) {
+                return;
+            }
+            
+            // Reset all scores to 50
+            evaluationItems.forEach(item => {
+                updateSelfScore(item.id, 50);
+                const textElement = document.getElementById(`selfText_${item.id}`);
+                const evidenceElement = document.getElementById(`selfEvidence_${item.id}`);
+                if (textElement) textElement.value = '';
+                if (evidenceElement) evidenceElement.value = '';
+            });
+            
+            // Reset overall assessment
+            document.getElementById('selfMajorAchievements').value = '';
+            document.getElementById('selfImprovementAreas').value = '';
+            document.getElementById('selfFutureGoals').value = '';
+            
+            // Reset last saved time
+            document.getElementById('lastSavedTime').textContent = '아직 저장되지 않음';
+            
+            showToast('자기평가가 초기화되었습니다.', 'info');
+        }
+
+        function loadPreviousSelfEvaluations() {
+            const container = document.getElementById('previousSelfEvaluations');
+            const savedEvaluations = localStorage.getItem('selfEvaluationData');
+            
+            if (!savedEvaluations) {
+                container.innerHTML = `
+                    <div class="text-center text-gray-500 py-8">
+                        <i class="fas fa-history text-4xl mb-4 opacity-50"></i>
+                        <p>아직 완료된 자기평가가 없습니다.</p>
+                        <p class="text-sm">첫 번째 자기평가를 작성해보세요!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const evaluations = JSON.parse(savedEvaluations);
+            container.innerHTML = '';
+            
+            Object.keys(evaluations).forEach(period => {
+                const evaluation = evaluations[period];
+                const item = document.createElement('div');
+                item.className = 'bg-gray-50 p-4 rounded-lg border border-gray-200';
+                
+                // Calculate average score
+                const scores = Object.values(evaluation.items).map(item => parseInt(item.score));
+                const averageScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+                
+                item.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h4 class="font-medium text-gray-900">${getPeriodName(period)}</h4>
+                            <p class="text-sm text-gray-600">제출일: ${new Date(evaluation.submittedAt).toLocaleDateString('ko-KR')}</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-lg font-semibold text-blue-600">${Math.round(averageScore)}점</div>
+                            <button onclick="viewSelfEvaluation('${period}')" class="text-sm text-blue-600 hover:underline">
+                                자세히 보기
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(item);
+            });
+        }
+
+        function getPeriodName(period) {
+            const names = {
+                '2025-q1': '2025년 1분기 평가',
+                '2025-q2': '2025년 2분기 평가',
+                '2025-annual': '2025년 연간 평가'
+            };
+            return names[period] || period;
+        }
+
+        function viewSelfEvaluation(period) {
+            // 실제로는 상세 보기 모달이나 페이지를 보여줍니다
+            alert(`${getPeriodName(period)} 상세보기는 향후 구현 예정입니다.`);
+        }
+
+        function loadSelfEvaluationTab() {
+            // Load previous evaluations
+            loadPreviousSelfEvaluations();
+            
+            // Update stats
+            updateSelfEvaluationStats();
+            
+            // Load saved data
+            const savedEvaluations = localStorage.getItem('selfEvaluationData');
+            const savedDrafts = localStorage.getItem('selfEvaluationDrafts');
+            
+            if (savedEvaluations) {
+                selfEvaluationData = JSON.parse(savedEvaluations);
+            }
+            
+            if (savedDrafts) {
+                selfEvaluationDrafts = JSON.parse(savedDrafts);
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            // Simple toast notification
+            const toast = document.createElement('div');
+            toast.className = `fixed top-4 right-4 px-6 py-3 rounded-md text-white z-50 ${
+                type === 'success' ? 'bg-green-500' : 
+                type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+            }`;
+            toast.textContent = message;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
         }
 
         // Error handling for browser extensions and compatibility
