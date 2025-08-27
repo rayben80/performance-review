@@ -11,7 +11,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <!-- Custom Styles -->
-    <link href="/public/css/main.css" rel="stylesheet">
+    <link href="./public/css/main.css" rel="stylesheet">
 </head>
 <body class="bg-gray-50 text-gray-800">
     <div class="min-h-screen">
@@ -94,6 +94,11 @@
                         </li>
                     </ul>
                 </div>
+                
+                <!-- Mini Toggle (모바일용) -->
+                <button id="miniToggle" class="lg:hidden fixed bottom-4 left-4 bg-blue-600 text-white p-3 rounded-full shadow-lg z-40">
+                    <i class="fas fa-bars"></i>
+                </button>
             </nav>
 
             <!-- Main Content -->
@@ -101,397 +106,79 @@
                 <!-- Dashboard Tab -->
                 <div id="dashboard" class="tab-content active">
                     <div class="mb-6">
-                        <h2 class="text-2xl font-bold text-gray-900 mb-2">🎯 관리자 권한 시스템 테스트</h2>
-                        <p class="text-gray-600">권한 시스템이 성공적으로 구현되었습니다!</p>
+                        <h2 class="text-2xl font-bold text-gray-900 mb-2">대시보드</h2>
+                        <p class="text-gray-600">시스템 현황을 한눈에 확인하세요</p>
                     </div>
                     
-                    <!-- 권한 테스트 섹션 -->
-                    <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm mb-6">
+                    <!-- 통계 카드 -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                        <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-600">총 조직</p>
+                                    <p class="text-2xl font-bold text-blue-600" id="totalOrgs">0</p>
+                                </div>
+                                <i class="fas fa-building text-blue-600 text-2xl"></i>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-600">총 구성원</p>
+                                    <p class="text-2xl font-bold text-green-600" id="totalMembers">0</p>
+                                </div>
+                                <i class="fas fa-users text-green-600 text-2xl"></i>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-600">총 평가</p>
+                                    <p class="text-2xl font-bold text-purple-600" id="totalEvaluations">0</p>
+                                </div>
+                                <i class="fas fa-clipboard-list text-purple-600 text-2xl"></i>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-600">완료 평가</p>
+                                    <p class="text-2xl font-bold text-orange-600" id="completedEvaluations">0</p>
+                                </div>
+                                <i class="fas fa-check-circle text-orange-600 text-2xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 최근 활동 -->
+                    <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
                         <h3 class="text-lg font-semibold text-gray-900 mb-4">
-                            <i class="fas fa-shield-alt text-green-600 mr-2"></i>권한 관리 시스템
+                            <i class="fas fa-history mr-2"></i>최근 활동
                         </h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <h4 class="font-medium text-gray-900 mb-3">✅ 완료된 기능</h4>
-                                <ul class="space-y-2 text-sm text-gray-700">
-                                    <li class="flex items-center"><i class="fas fa-check text-green-600 mr-2"></i>관리자/일반 사용자 권한 분리</li>
-                                    <li class="flex items-center"><i class="fas fa-check text-green-600 mr-2"></i>설정 관리 접근 제한</li>
-                                    <li class="flex items-center"><i class="fas fa-check text-green-600 mr-2"></i>실시간 권한 변경 기능</li>
-                                    <li class="flex items-center"><i class="fas fa-check text-green-600 mr-2"></i>LocalStorage 데이터 저장</li>
-                                    <li class="flex items-center"><i class="fas fa-check text-green-600 mr-2"></i>권한 기반 메뉴 제어</li>
-                                </ul>
-                            </div>
-                            <div>
-                                <h4 class="font-medium text-gray-900 mb-3">🔧 테스트 방법</h4>
-                                <div class="space-y-3">
-                                    <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                        <p class="text-sm font-medium text-blue-900">1. 권한 전환 테스트</p>
-                                        <p class="text-xs text-blue-700 mt-1">우상단의 Admin/User 버튼을 클릭해보세요</p>
-                                    </div>
-                                    <div class="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                                        <p class="text-sm font-medium text-orange-900">2. 설정 접근 테스트</p>
-                                        <p class="text-xs text-orange-700 mt-1">일반 사용자 모드에서 "설정 관리" 메뉴를 클릭해보세요</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 기능 테스트 카드들 -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div class="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 p-6 rounded-lg">
-                            <div class="flex items-center justify-between mb-4">
-                                <div class="bg-green-600 text-white p-3 rounded-lg">
-                                    <i class="fas fa-user-shield text-xl"></i>
-                                </div>
-                                <span class="text-xs bg-green-200 text-green-800 px-2 py-1 rounded">완료</span>
-                            </div>
-                            <h4 class="font-bold text-green-900 mb-2">권한 시스템</h4>
-                            <p class="text-sm text-green-700 mb-4">관리자/일반 사용자 권한 분리 및 메뉴 접근 제어</p>
-                            <div class="flex space-x-2">
-                                <button onclick="switchUserRole('admin')" class="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Admin</button>
-                                <button onclick="switchUserRole('user')" class="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">User</button>
-                            </div>
-                        </div>
-                        
-                        <div class="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 p-6 rounded-lg">
-                            <div class="flex items-center justify-between mb-4">
-                                <div class="bg-blue-600 text-white p-3 rounded-lg">
-                                    <i class="fas fa-cogs text-xl"></i>
-                                </div>
-                                <span class="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded">테스트</span>
-                            </div>
-                            <h4 class="font-bold text-blue-900 mb-2">설정 관리</h4>
-                            <p class="text-sm text-blue-700 mb-4">관리자 전용 설정 메뉴 접근 제한 확인</p>
-                            <button onclick="showTab('settings')" class="w-full text-sm px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">설정 테스트</button>
-                        </div>
-                        
-                        <div class="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 p-6 rounded-lg">
-                            <div class="flex items-center justify-between mb-4">
-                                <div class="bg-purple-600 text-white p-3 rounded-lg">
-                                    <i class="fas fa-clipboard-check text-xl"></i>
-                                </div>
-                                <span class="text-xs bg-purple-200 text-purple-800 px-2 py-1 rounded">준비됨</span>
-                            </div>
-                            <h4 class="font-bold text-purple-900 mb-2">평가 시스템</h4>
-                            <p class="text-sm text-purple-700 mb-4">자기평가 및 타인평가 기능 (개발 예정)</p>
-                            <button onclick="showTab('selfEvaluation')" class="w-full text-sm px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">평가 보기</button>
+                        <div id="recentActivities" class="space-y-3">
+                            <p class="text-gray-600">최근 활동이 없습니다.</p>
                         </div>
                     </div>
                 </div>
 
-                <!-- Settings Tab -->
-                <div id="settings" class="tab-content">
-                    <div class="mb-6">
-                        <h2 class="text-2xl font-bold text-gray-900 mb-2">⚙️ 설정 관리</h2>
-                        <p class="text-gray-600">이 메뉴는 관리자 권한이 필요합니다</p>
-                    </div>
-                    
-                    <div class="bg-white p-8 rounded-lg border border-gray-200 shadow-sm">
-                        <div class="text-center">
-                            <div class="mb-6">
-                                <div class="mx-auto w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                                    <i class="fas fa-lock text-red-600 text-3xl"></i>
-                                </div>
-                                <h3 class="text-xl font-bold text-gray-900 mb-2">관리자 권한 필요</h3>
-                                <p class="text-gray-600 mb-6">이 설정 메뉴는 관리자 권한을 가진 사용자만 이용할 수 있습니다.</p>
-                            </div>
-                            
-                            <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-                                <p class="text-sm text-red-700">
-                                    <i class="fas fa-exclamation-triangle mr-2"></i>
-                                    <strong>권한 시스템 테스트:</strong> 우상단의 "Admin" 버튼을 클릭하여 관리자 권한으로 전환하세요
-                                </p>
-                            </div>
-                            
-                            <div class="flex justify-center space-x-4">
-                                <button onclick="switchUserRole('admin')" 
-                                        class="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
-                                    <i class="fas fa-user-shield mr-2"></i>관리자로 전환
-                                </button>
-                                <button onclick="showTab('dashboard')" 
-                                        class="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
-                                    <i class="fas fa-arrow-left mr-2"></i>대시보드로 이동
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Other tabs placeholder -->
-                <div id="evaluation" class="tab-content">
-                    <div class="mb-6">
-                        <h2 class="text-2xl font-bold text-gray-900 mb-2">📋 타인 평가</h2>
-                        <p class="text-gray-600">팀원 평가 기능 (개발 예정)</p>
-                    </div>
-                    <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                        <div class="text-center py-8">
-                            <i class="fas fa-clipboard-list text-gray-400 text-4xl mb-4"></i>
-                            <h3 class="text-lg font-medium text-gray-900 mb-2">타인 평가 기능</h3>
-                            <p class="text-gray-600">곧 업데이트될 예정입니다</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="selfEvaluation" class="tab-content">
-                    <div class="mb-6">
-                        <h2 class="text-2xl font-bold text-gray-900 mb-2">📝 자기 평가</h2>
-                        <p class="text-gray-600">자기 성과 평가 기능 (개발 예정)</p>
-                    </div>
-                    <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                        <div class="text-center py-8">
-                            <i class="fas fa-user-check text-gray-400 text-4xl mb-4"></i>
-                            <h3 class="text-lg font-medium text-gray-900 mb-2">자기 평가 기능</h3>
-                            <p class="text-gray-600">곧 업데이트될 예정입니다</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="reports" class="tab-content">
-                    <div class="mb-6">
-                        <h2 class="text-2xl font-bold text-gray-900 mb-2">📊 평가 결과</h2>
-                        <p class="text-gray-600">평가 결과 분석 기능 (개발 예정)</p>
-                    </div>
-                    <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                        <div class="text-center py-8">
-                            <i class="fas fa-chart-bar text-gray-400 text-4xl mb-4"></i>
-                            <h3 class="text-lg font-medium text-gray-900 mb-2">평가 결과 분석</h3>
-                            <p class="text-gray-600">곧 업데이트될 예정입니다</p>
-                        </div>
-                    </div>
-                </div>
+                <!-- 다른 탭들은 JavaScript로 동적 생성 -->
+                <div id="settings" class="tab-content"></div>
+                <div id="evaluation" class="tab-content"></div>
+                <div id="selfEvaluation" class="tab-content"></div>
+                <div id="reports" class="tab-content"></div>
             </main>
         </div>
     </div>
 
-    <script>
-    // 전역 변수
-    let currentUser = {
-        id: 'admin',
-        name: '관리자',
-        role: 'admin',
-        email: 'admin@company.com'
-    };
-
-    // 초기화
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('🚀 클라우드사업본부 업무평가 시스템 시작');
-        loadUserFromStorage();
-        initializeUserPermissions();
-        showTab('dashboard');
-    });
-
-    // 로컬 스토리지에서 사용자 정보 로드
-    function loadUserFromStorage() {
-        try {
-            const savedUser = localStorage.getItem('currentUser');
-            if (savedUser) {
-                const loadedUser = JSON.parse(savedUser);
-                Object.assign(currentUser, loadedUser);
-            }
-        } catch (error) {
-            console.error('사용자 정보 로드 오류:', error);
-        }
-    }
-
-    // 로컬 스토리지에 사용자 정보 저장
-    function saveUserToStorage() {
-        try {
-            localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        } catch (error) {
-            console.error('사용자 정보 저장 오류:', error);
-        }
-    }
-
-    // 사용자 권한 초기화
-    function initializeUserPermissions() {
-        updateUserInfo();
-        updateMenuAccess();
-    }
-
-    // 사용자 정보 업데이트
-    function updateUserInfo() {
-        const userNameElement = document.getElementById('userName');
-        const userRoleElement = document.getElementById('userRole');
-        
-        if (userNameElement) {
-            userNameElement.textContent = currentUser.name;
-        }
-        
-        if (userRoleElement) {
-            const roleText = currentUser.role === 'admin' ? '관리자' : '일반 사용자';
-            const roleColor = currentUser.role === 'admin' ? 'text-red-600' : 'text-blue-600';
-            userRoleElement.innerHTML = `<span class="${roleColor} font-semibold">${roleText}</span>`;
-        }
-    }
-
-    // 메뉴 접근 권한 업데이트
-    function updateMenuAccess() {
-        const adminOnlyTabs = ['settings'];
-        
-        adminOnlyTabs.forEach(tabName => {
-            const tabButton = document.querySelector(`[onclick="showTab('${tabName}')"]`);
-            if (tabButton) {
-                if (currentUser.role !== 'admin') {
-                    tabButton.classList.add('opacity-50', 'cursor-not-allowed');
-                    tabButton.title = '관리자 권한이 필요합니다';
-                    
-                    if (!tabButton.innerHTML.includes('fa-lock')) {
-                        tabButton.innerHTML += ' <i class="fas fa-lock ml-1 text-xs"></i>';
-                    }
-                } else {
-                    tabButton.classList.remove('opacity-50', 'cursor-not-allowed');
-                    tabButton.title = '';
-                    // 자물쇠 아이콘 제거
-                    tabButton.innerHTML = tabButton.innerHTML.replace(/ <i class="fas fa-lock ml-1 text-xs"><\/i>/, '');
-                }
-            }
-        });
-    }
-
-    // 탭 접근 권한 확인
-    function checkTabPermission(tabName) {
-        const adminOnlyTabs = ['settings'];
-        return !adminOnlyTabs.includes(tabName) || currentUser.role === 'admin';
-    }
-
-    // 사용자 역할 변경
-    function switchUserRole(role) {
-        if (role === 'admin' || role === 'user') {
-            const prevRole = currentUser.role;
-            
-            currentUser.role = role;
-            currentUser.name = role === 'admin' ? '관리자' : '김직원';
-            currentUser.email = role === 'admin' ? 'admin@company.com' : 'employee@company.com';
-            
-            updateUserInfo();
-            updateMenuAccess();
-            saveUserToStorage();
-            
-            // 현재 설정 탭에 있고 권한이 없으면 대시보드로 이동
-            const currentTab = document.querySelector('.tab-content.active');
-            if (currentTab && currentTab.id === 'settings' && role !== 'admin') {
-                showTab('dashboard');
-            }
-            
-            const roleText = role === 'admin' ? '관리자' : '일반 사용자';
-            const messageType = role === 'admin' ? 'success' : 'info';
-            showToast(`${roleText} 모드로 변경되었습니다.`, messageType);
-            
-            console.log(`권한 변경: ${prevRole} → ${role}`);
-        }
-    }
-
-    // 관리자 권한 확인
-    function isAdmin() {
-        return currentUser.role === 'admin';
-    }
-
-    // 탭 표시
-    function showTab(tabName) {
-        if (!checkTabPermission(tabName)) {
-            showToast('관리자 권한이 필요한 메뉴입니다.', 'error');
-            return;
-        }
-        
-        // 모든 탭 버튼 비활성화
-        document.querySelectorAll('.tab-button').forEach(btn => {
-            btn.classList.remove('active', 'bg-blue-600', 'text-white');
-            btn.classList.add('text-gray-600', 'hover:text-gray-900');
-        });
-        
-        // 모든 탭 콘텐츠 숨기기
-        document.querySelectorAll('.tab-content').forEach(content => {
-            content.classList.remove('active');
-        });
-        
-        // 선택된 탭 버튼 활성화
-        const activeButton = document.querySelector(`[onclick="showTab('${tabName}')"]`);
-        if (activeButton) {
-            activeButton.classList.remove('text-gray-600', 'hover:text-gray-900');
-            activeButton.classList.add('active', 'bg-blue-600', 'text-white');
-        }
-        
-        // 선택된 탭 콘텐츠 표시
-        const activeContent = document.getElementById(tabName);
-        if (activeContent) {
-            activeContent.classList.add('active');
-        }
-        
-        console.log(`탭 전환: ${tabName} (권한: ${currentUser.role})`);
-    }
-
-    // Toast 메시지
-    function showToast(message, type = 'info') {
-        const existingToast = document.querySelector('.toast-message');
-        if (existingToast) {
-            existingToast.remove();
-        }
-        
-        const toast = document.createElement('div');
-        toast.className = 'toast-message fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 max-w-sm';
-        
-        const colors = {
-            success: 'bg-green-500 text-white',
-            error: 'bg-red-500 text-white', 
-            warning: 'bg-yellow-500 text-white',
-            info: 'bg-blue-500 text-white'
-        };
-        
-        toast.className += ` ${colors[type] || colors.info}`;
-        
-        // 아이콘 추가
-        const icons = {
-            success: 'fas fa-check-circle',
-            error: 'fas fa-exclamation-triangle',
-            warning: 'fas fa-exclamation-circle',
-            info: 'fas fa-info-circle'
-        };
-        
-        toast.innerHTML = `<i class="${icons[type] || icons.info} mr-2"></i>${message}`;
-        
-        document.body.appendChild(toast);
-        
-        // 3초 후 자동 제거
-        setTimeout(() => {
-            if (toast.parentNode) {
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateX(100%)';
-                setTimeout(() => toast.remove(), 300);
-            }
-        }, 3000);
-    }
-
-    // 사이드바 토글 (모바일 대응)
-    document.getElementById('sidebarToggle').addEventListener('click', function() {
-        const sidebar = document.getElementById('sidebar');
-        sidebar.classList.toggle('hidden');
-    });
-
-    console.log('✅ 시스템 초기화 완료');
-    </script>
-
-    <style>
-    .tab-content {
-        display: none;
-    }
-    .tab-content.active {
-        display: block;
-    }
-    .tab-button.active {
-        background-color: #2563eb !important;
-        color: white !important;
-    }
-    .toast-message {
-        transition: all 0.3s ease;
-    }
-    .admin-only {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-    .admin-only:hover {
-        opacity: 0.7;
-    }
-    </style>
+    <!-- JavaScript Modules -->
+    <script src="./public/js/utils.js?v=20250827-3"></script>
+    <script src="./public/js/organization.js?v=20250827-3"></script>
+    <script src="./public/js/manual-input.js?v=20250827-3"></script>
+    <script src="./public/js/member-management.js?v=20250827-3"></script>
+    <script src="./public/js/excel-management.js?v=20250827-3"></script>
+    <script src="./public/js/app.js?v=20250827-3"></script>
 </body>
 </html>

@@ -48,6 +48,10 @@ function saveToStorage() {
         if (typeof currentUser !== 'undefined') {
             localStorage.setItem('currentUser', JSON.stringify(currentUser));
         }
+        // 관리자 목록 저장
+        if (typeof adminUsers !== 'undefined') {
+            localStorage.setItem('adminUsers', JSON.stringify(adminUsers));
+        }
         console.log('데이터가 LocalStorage에 저장되었습니다.');
     } catch (error) {
         console.error('LocalStorage 저장 오류:', error);
@@ -64,6 +68,7 @@ function loadFromStorage() {
         const savedOrganizationData = localStorage.getItem('organizationData');
         const savedEvaluationData = localStorage.getItem('evaluationData');
         const savedCurrentUser = localStorage.getItem('currentUser');
+        const savedAdminUsers = localStorage.getItem('adminUsers');
         
         if (savedEvaluationItems) {
             evaluationItems = JSON.parse(savedEvaluationItems);
@@ -84,6 +89,10 @@ function loadFromStorage() {
         if (savedCurrentUser && typeof currentUser !== 'undefined') {
             const loadedUser = JSON.parse(savedCurrentUser);
             Object.assign(currentUser, loadedUser);
+        }
+        // 관리자 목록 로드
+        if (savedAdminUsers && typeof adminUsers !== 'undefined') {
+            adminUsers = JSON.parse(savedAdminUsers);
         }
         
         console.log('데이터가 LocalStorage에서 로드되었습니다.');

@@ -20,34 +20,53 @@ let currentUser = {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 클라우드사업본부 업무평가 시스템 시작');
     
-    // 사용자 권한 확인 및 UI 설정
-    initializeUserPermissions();
-    
-    // 데이터 로드
-    loadFromStorage();
-    
-    // UI 초기화
-    initializeUI();
-    
-    // 탭 시스템 초기화
-    initializeTabs();
-    
-    // 평가 시스템 초기화
-    initializeEvaluationSystem();
-    
-    // 조직도 렌더링
-    renderOrganizationChart();
-    
-    console.log('✅ 시스템 초기화 완료');
+    try {
+        // 데이터 로드
+        console.log('데이터 로딩 중...');
+        loadFromStorage();
+        console.log('데이터 로드 완료');
+        
+        // 사용자 권한 확인 및 UI 설정 (데이터 로드 후)
+        console.log('사용자 권한 초기화 중...');
+        initializeUserPermissions();
+        
+        // UI 초기화
+        console.log('UI 초기화 중...');
+        initializeUI();
+        
+        // 탭 시스템 초기화
+        console.log('탭 시스템 초기화 중...');
+        initializeTabs();
+        
+        // 평가 시스템 초기화
+        console.log('평가 시스템 초기화 중...');
+        initializeEvaluationSystem();
+        
+        // 조직도 렌더링
+        console.log('조직도 렌더링 중...');
+        renderOrganizationChart();
+        
+        console.log('✅ 시스템 초기화 완료');
+    } catch (error) {
+        console.error('초기화 중 오류 발생:', error);
+    }
 });
 
 // 사용자 권한 초기화
 function initializeUserPermissions() {
+    console.log('사용자 권한 초기화 시작:', currentUser);
+    
+    // 현재 사용자의 관리자 권한 검증
+    validateCurrentUserAdmin();
+    
     // 현재 사용자 정보 표시
     updateUserInfo();
     
-    // 권한에 따른 메뉴 제어
-    updateMenuAccess();
+    // 권한에 따른 메뉴 제어 (지연 실행으로 DOM 로드 완료 후 실행)
+    setTimeout(() => {
+        updateMenuAccess();
+        console.log('사용자 권한 초기화 완료');
+    }, 500);
 }
 
 // 사용자 정보 업데이트
@@ -85,12 +104,22 @@ function updateMenuAccess() {
                     tabButton.innerHTML += lockIcon;
                 }
             } else {
-                // 관리자에게는 정상 스타일 유지
+                // 관리자에게는 정상 스타일 유지 및 락 아이콘 제거
                 tabButton.classList.remove('opacity-50', 'cursor-not-allowed');
                 tabButton.title = '';
+                
+                // 락 아이콘 제거
+                const lockIcon = tabButton.querySelector('.fa-lock');
+                if (lockIcon) {
+                    lockIcon.remove();
+                }
+                
+                console.log(`관리자 메뉴 활성화: ${tabName}`);
             }
         }
     });
+    
+    console.log(`메뉴 접근 권한 업데이트 완료 (현재 역할: ${currentUser.role})`);
 }
 
 // 탭 접근 권한 확인
@@ -109,13 +138,20 @@ function checkTabPermission(tabName) {
 // 사용자 역할 변경 (개발/테스트용)
 function switchUserRole(role) {
     if (role === 'admin' || role === 'user') {
+        console.log(`역할 변경: ${currentUser.role} → ${role}`);
+        
         currentUser.role = role;
         currentUser.name = role === 'admin' ? '관리자' : '김직원';
         currentUser.email = role === 'admin' ? 'admin@company.com' : 'employee@company.com';
         
         // UI 업데이트
         updateUserInfo();
-        updateMenuAccess();
+        
+        // 메뉴 접근성 업데이트 (약간의 지연을 두어 DOM 업데이트 후 실행)
+        setTimeout(() => {
+            updateMenuAccess();
+            console.log('메뉴 접근성 업데이트 완료');
+        }, 100);
         
         // 현재 설정 탭에 있고 권한이 없으면 대시보드로 이동
         const currentTab = document.querySelector('.tab-content.active');
@@ -211,7 +247,7 @@ function showTab(tabName) {
         // 탭별 특별 처리
         handleTabSpecialCases(tabName);
         
-        console.log('Tab switched successfully to:', tabName);
+        console.log('탭 전환:', tabName, '(권한:', currentUser.role, ')');
     } catch (error) {
         console.error('Error switching tab:', error);
     }
@@ -225,6 +261,7 @@ function handleTabSpecialCases(tabName) {
             createSettingsContent();
             renderSettings();
             updateEvaluationCounts();
+            renderAdminList();
             break;
         case 'dashboard':
             // 대시보드 데이터 업데이트
@@ -737,6 +774,34 @@ function createSettingsContent() {
                         </div>
                     </div>
                 </div>
+                
+                <!-- 관리자 관리 -->
+                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900">관리자 관리</h3>
+                            <p class="text-sm text-gray-600 mt-1">시스템 관리자를 지정하거나 변경하세요</p>
+                        </div>
+                        <button onclick="showAdminManagementModal()" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm">
+                            <i class="fas fa-user-cog mr-2"></i>관리자 설정
+                        </button>
+                    </div>
+                    
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                        <h5 class="text-sm font-medium text-red-900 mb-2">🔐 관리자 권한 안내</h5>
+                        <ul class="text-sm text-red-800 space-y-1">
+                            <li>• <strong>관리자</strong>: 모든 메뉴 접근, 조직도 관리, 평가 설정 등</li>
+                            <li>• <strong>일반 사용자</strong>: 대시보드, 평가 참여만 가능</li>
+                            <li>• 관리자는 여러 명 지정 가능하며, 최소 1명은 유지되어야 합니다</li>
+                            <li>• 현재 로그인된 사용자의 권한 변경시 즉시 적용됩니다</li>
+                        </ul>
+                    </div>
+                    
+                    <!-- 현재 관리자 목록 -->
+                    <div id="adminList" class="space-y-2">
+                        <!-- 동적으로 관리자 목록이 표시됩니다 -->
+                    </div>
+                </div>
             </div>
         `;
     }
@@ -821,6 +886,294 @@ function saveSelfEvaluationDraft() {
 
 function previewSelfEvaluation() {
     showToast('미리보기 기능은 준비 중입니다.', 'info');
+}
+
+// 관리자 목록을 저장할 전역 변수
+let adminUsers = [
+    {
+        id: 'admin',
+        name: '관리자',
+        email: 'admin@company.com',
+        role: 'admin',
+        assignedAt: new Date().toISOString()
+    }
+];
+
+// 관리자 관리 모달 표시
+function showAdminManagementModal() {
+    if (!isAdmin()) {
+        showToast('관리자 권한이 필요합니다.', 'error');
+        return;
+    }
+    
+    // 조직의 모든 구성원 가져오기
+    const allMembers = [];
+    Object.values(organizationData).forEach(org => {
+        if (org.members) {
+            org.members.forEach(member => {
+                allMembers.push({
+                    ...member,
+                    orgName: org.name,
+                    orgType: org.type
+                });
+            });
+        }
+    });
+    
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 modal-backdrop';
+    modal.innerHTML = `
+        <div class="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-900">👨‍💼 관리자 권한 관리</h3>
+                <button onclick="closeModal(this)" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-6">
+                <!-- 현재 관리자 목록 -->
+                <div>
+                    <h4 class="font-medium text-gray-900 mb-3">현재 관리자 (${adminUsers.length}명)</h4>
+                    <div class="space-y-2" id="currentAdmins">
+                        ${adminUsers.map(admin => `
+                            <div class="flex items-center justify-between p-3 bg-red-50 border border-red-200 rounded-lg">
+                                <div class="flex items-center space-x-3">
+                                    <i class="fas fa-user-shield text-red-600"></i>
+                                    <div>
+                                        <span class="font-medium text-gray-900">${admin.name}</span>
+                                        <div class="text-sm text-gray-600">${admin.email || '이메일 없음'}</div>
+                                        <div class="text-xs text-gray-500">지정일: ${formatDateTime(admin.assignedAt)}</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    ${admin.id === currentUser.id ? 
+                                        '<span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">현재 로그인</span>' : 
+                                        `<button onclick="removeAdmin('${admin.id}')" class="text-red-600 hover:text-red-800 text-sm">
+                                            <i class="fas fa-user-minus"></i> 해제
+                                        </button>`
+                                    }
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <!-- 조직 구성원에서 관리자 추가 -->
+                <div>
+                    <h4 class="font-medium text-gray-900 mb-3">조직 구성원에서 관리자 지정</h4>
+                    ${allMembers.length > 0 ? `
+                        <div class="space-y-2 max-h-60 overflow-y-auto">
+                            ${allMembers.map(member => {
+                                const isAdmin = adminUsers.some(admin => admin.email === member.email);
+                                return `
+                                    <div class="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                                        <div class="flex items-center space-x-3">
+                                            <i class="fas fa-user text-gray-600"></i>
+                                            <div>
+                                                <span class="font-medium text-gray-900">${member.name}</span>
+                                                <div class="text-sm text-gray-600">${member.email || '이메일 없음'}</div>
+                                                <div class="text-xs text-gray-500">${member.orgName} (${member.position || '직급 없음'})</div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            ${isAdmin ? 
+                                                '<span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">관리자</span>' :
+                                                `<button onclick="addAdminFromMember('${member.id}', '${member.name}', '${member.email || ''}')" 
+                                                         class="text-blue-600 hover:text-blue-800 text-sm">
+                                                    <i class="fas fa-user-plus"></i> 관리자 지정
+                                                </button>`
+                                            }
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    ` : `
+                        <div class="text-center text-gray-500 py-8">
+                            <i class="fas fa-users text-2xl mb-2"></i>
+                            <p>등록된 조직 구성원이 없습니다.</p>
+                            <p class="text-sm">먼저 조직도를 구성해주세요.</p>
+                        </div>
+                    `}
+                </div>
+                
+                <!-- 직접 관리자 추가 -->
+                <div>
+                    <h4 class="font-medium text-gray-900 mb-3">직접 관리자 추가</h4>
+                    <form onsubmit="addDirectAdmin(event)">
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">이름 *</label>
+                                <input type="text" name="adminName" required 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       placeholder="관리자 이름">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">이메일 *</label>
+                                <input type="email" name="adminEmail" required 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       placeholder="admin@company.com">
+                            </div>
+                        </div>
+                        <button type="submit" 
+                                class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
+                            <i class="fas fa-user-plus mr-2"></i>관리자 추가
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="flex justify-end mt-6">
+                <button onclick="closeModal(this)" 
+                        class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">
+                    닫기
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+}
+
+// 조직 구성원을 관리자로 지정
+function addAdminFromMember(memberId, memberName, memberEmail) {
+    if (!memberEmail) {
+        showToast('이메일이 없는 구성원은 관리자로 지정할 수 없습니다.', 'error');
+        return;
+    }
+    
+    // 이미 관리자인지 확인
+    const existingAdmin = adminUsers.find(admin => admin.email === memberEmail);
+    if (existingAdmin) {
+        showToast('이미 관리자로 지정된 사용자입니다.', 'warning');
+        return;
+    }
+    
+    const newAdmin = {
+        id: generateId('admin'),
+        name: memberName,
+        email: memberEmail,
+        role: 'admin',
+        assignedAt: new Date().toISOString(),
+        source: 'member'
+    };
+    
+    adminUsers.push(newAdmin);
+    saveToStorage();
+    
+    // 모달 새로고침
+    closeModal(document.querySelector('.modal-backdrop'));
+    showAdminManagementModal();
+    
+    showToast(`${memberName}님을 관리자로 지정했습니다.`, 'success');
+}
+
+// 직접 관리자 추가
+function addDirectAdmin(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    
+    const name = formData.get('adminName').trim();
+    const email = formData.get('adminEmail').trim();
+    
+    // 이메일 중복 확인
+    const existingAdmin = adminUsers.find(admin => admin.email === email);
+    if (existingAdmin) {
+        showToast('이미 등록된 이메일입니다.', 'error');
+        return;
+    }
+    
+    const newAdmin = {
+        id: generateId('admin'),
+        name: name,
+        email: email,
+        role: 'admin',
+        assignedAt: new Date().toISOString(),
+        source: 'direct'
+    };
+    
+    adminUsers.push(newAdmin);
+    saveToStorage();
+    
+    // 모달 새로고침
+    closeModal(document.querySelector('.modal-backdrop'));
+    showAdminManagementModal();
+    
+    showToast(`${name}님을 관리자로 추가했습니다.`, 'success');
+}
+
+// 관리자 해제
+function removeAdmin(adminId) {
+    const admin = adminUsers.find(a => a.id === adminId);
+    if (!admin) return;
+    
+    // 최소 1명의 관리자는 유지
+    if (adminUsers.length <= 1) {
+        showToast('최소 1명의 관리자는 유지되어야 합니다.', 'error');
+        return;
+    }
+    
+    if (confirm(`${admin.name}님의 관리자 권한을 해제하시겠습니까?`)) {
+        adminUsers = adminUsers.filter(a => a.id !== adminId);
+        saveToStorage();
+        
+        // 현재 사용자가 해제된 경우 일반 사용자로 전환
+        if (admin.email === currentUser.email) {
+            switchUserRole('user');
+        }
+        
+        // 모달 새로고침
+        closeModal(document.querySelector('.modal-backdrop'));
+        showAdminManagementModal();
+        
+        showToast(`${admin.name}님의 관리자 권한이 해제되었습니다.`, 'info');
+    }
+}
+
+// 현재 관리자 목록 렌더링 (설정 탭에서)
+function renderAdminList() {
+    const container = document.getElementById('adminList');
+    if (!container) return;
+    
+    container.innerHTML = adminUsers.map(admin => `
+        <div class="flex items-center justify-between p-3 bg-red-50 border border-red-200 rounded-lg">
+            <div class="flex items-center space-x-3">
+                <i class="fas fa-user-shield text-red-600"></i>
+                <div>
+                    <span class="font-medium text-gray-900">${admin.name}</span>
+                    <div class="text-sm text-gray-600">${admin.email}</div>
+                    <div class="text-xs text-gray-500">지정일: ${formatDateTime(admin.assignedAt)}</div>
+                </div>
+            </div>
+            <div>
+                ${admin.id === currentUser.id ? 
+                    '<span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">현재 로그인</span>' : 
+                    '<span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">관리자</span>'
+                }
+            </div>
+        </div>
+    `).join('');
+}
+
+// 사용자 권한 확인 함수 업그레이드
+function checkUserPermission(userEmail) {
+    return adminUsers.some(admin => admin.email === userEmail);
+}
+
+// 로그인한 사용자가 관리자인지 확인하는 향상된 함수
+function validateCurrentUserAdmin() {
+    if (currentUser.email) {
+        const isRealAdmin = adminUsers.some(admin => admin.email === currentUser.email);
+        if (!isRealAdmin && currentUser.role === 'admin') {
+            // 관리자 목록에 없는데 관리자로 설정된 경우 일반 사용자로 전환
+            currentUser.role = 'user';
+            updateUserInfo();
+            updateMenuAccess();
+            showToast('관리자 권한이 해제되었습니다.', 'warning');
+            saveToStorage();
+        }
+    }
 }
 
 console.log('✅ 메인 애플리케이션이 로드되었습니다.');
