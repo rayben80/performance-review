@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Settings Tab Test</title>
+    <script>
+        async function testSettingsTab() {
+            try {
+                // 메인 페이지를 iframe으로 로드
+                const iframe = document.createElement('iframe');
+                iframe.src = 'https://3000-ihgr15q5utb535wovfkr8.e2b.dev';
+                iframe.style.width = '100%';
+                iframe.style.height = '600px';
+                document.body.appendChild(iframe);
+                
+                // iframe이 로드되면 설정 탭 클릭 시뮬레이션
+                iframe.onload = function() {
+                    setTimeout(() => {
+                        try {
+                            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                            const settingsBtn = iframeDoc.querySelector("[onclick*='settings']");
+                            if (settingsBtn) {
+                                settingsBtn.click();
+                                console.log('Settings button clicked!');
+                            } else {
+                                console.log('Settings button not found');
+                            }
+                        } catch (e) {
+                            console.log('Cross-origin restriction:', e.message);
+                        }
+                    }, 2000);
+                };
+            } catch (e) {
+                console.error('Test error:', e);
+            }
+        }
+        
+        window.onload = testSettingsTab;
+    </script>
+</head>
+<body>
+    <h1>Testing Settings Tab Click</h1>
+    <p>Check console for results...</p>
+</body>
+</html>
+</content>

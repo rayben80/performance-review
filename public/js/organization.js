@@ -16,7 +16,7 @@ function switchOrgMode(mode) {
         
         const activeTab = document.getElementById(mode + 'ModeTab');
         if (!activeTab) {
-            console.error('Active tab not found:', mode + 'ModeTab');
+            console.warn('Active tab not found:', mode + 'ModeTab', '- 설정 탭이 아직 생성되지 않음');
             return;
         }
         
@@ -47,7 +47,7 @@ function renderOrganizationChart() {
     const emptyMessage = document.getElementById('emptyOrgMessage');
     
     if (!container) {
-        console.warn('orgChartList container not found');
+        console.warn('orgChartList container not found - 설정 탭이 아직 생성되지 않음');
         return;
     }
 

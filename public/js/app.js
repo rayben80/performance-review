@@ -373,7 +373,7 @@ function updateStatsUI(stats) {
 function renderSettings() {
     const container = document.getElementById('evaluationItems');
     if (!container) {
-        console.warn('evaluationItems container not found');
+        console.warn('evaluationItems container not found - 설정 탭이 아직 생성되지 않음');
         return;
     }
     container.innerHTML = '';
