@@ -29,7 +29,8 @@ show_help() {
     echo "  ./backup-system.sh [옵션]"
     echo ""
     echo "옵션:"
-    echo "  backup          - 현재 상태 백업"
+    echo "  backup          - 현재 상태 백업 (GitHub 포함)"
+    echo "  github          - GitHub 전용 백업 도구 실행"
     echo "  list            - 백업 목록 표시"
     echo "  restore [파일]  - 백업 복원"
     echo "  rollback        - 마지막 Git 커밋으로 롤백"
@@ -46,6 +47,12 @@ backup_current() {
     cd "$PROJECT_DIR"
     git add .
     git commit -m "🔄 AUTO BACKUP: $(date '+%Y-%m-%d %H:%M:%S')" || echo "변경사항 없음"
+    
+    # GitHub 푸시 (원격 백업)
+    if git remote get-url origin >/dev/null 2>&1; then
+        echo -e "${BLUE}📤 GitHub에 백업 중...${NC}"
+        git push origin main 2>/dev/null || echo -e "${YELLOW}⚠️  GitHub 푸시 실패 (네트워크 확인)${NC}"
+    fi
     
     # tar.gz 백업 생성
     BACKUP_FILE="${BACKUP_DIR}/webapp_backup_${TIMESTAMP}.tar.gz"
@@ -223,6 +230,9 @@ check_status() {
 case "${1:-help}" in
     "backup")
         backup_current
+        ;;
+    "github")
+        ./github-backup.sh "${@:2}"
         ;;
     "list")
         list_backups
