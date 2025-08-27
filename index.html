@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>클라우드사업본부 업무평가 시스템</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .tab-button.active {
+            background-color: #3b82f6;
+            color: white;
+            border-bottom-color: transparent;
+        }
+        .drag-handle {
+            cursor: grab;
+        }
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+        .dragging {
+            opacity: 0.5;
+        }
+        .evaluation-item {
+            transition: all 0.2s ease;
+        }
+        .evaluation-item:hover {
+            background-color: #f8fafc;
+        }
+        
+        /* Loading animation */
+        .loading-spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Smooth transitions */
+        .transition-all {
+            transition: all 0.3s ease;
+        }
+        
+        /* Custom scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 3px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b border-gray-200">
+            <div class="max-w-7xl mx-auto px-4 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <i class="fas fa-chart-line text-blue-600 text-2xl"></i>
+                        <h1 class="text-2xl font-bold text-gray-900">클라우드사업본부 업무평가 시스템</h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="text-sm text-gray-600">
+                            <span id="currentUser">관리자</span>
+                        </div>
+                        <button class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-user-circle text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="bg-white border-b border-gray-200">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex space-x-0">
+                    <button onclick="showTab('overview')" class="tab-button px-6 py-3 text-sm font-medium text-gray-600 hover:text-gray-900 border-b-2 border-transparent transition-colors">
+                        <i class="fas fa-tachometer-alt mr-2"></i>개요
+                    </button>
+                    <button onclick="showTab('settings')" class="tab-button px-6 py-3 text-sm font-medium text-gray-600 hover:text-gray-900 border-b-2 border-transparent transition-colors">
+                        <i class="fas fa-cog mr-2"></i>설정
+                    </button>
+                    <button onclick="showTab('evaluation')" class="tab-button px-6 py-3 text-sm font-medium text-gray-600 hover:text-gray-900 border-b-2 border-transparent transition-colors">
+                        <i class="fas fa-clipboard-check mr-2"></i>평가
+                    </button>
+                    <button onclick="showTab('reports')" class="tab-button px-6 py-3 text-sm font-medium text-gray-600 hover:text-gray-900 border-b-2 border-transparent transition-colors">
+                        <i class="fas fa-chart-bar mr-2"></i>보고서
+                    </button>
+                    <button onclick="showTab('analysis')" class="tab-button px-6 py-3 text-sm font-medium text-gray-600 hover:text-gray-900 border-b-2 border-transparent transition-colors">
+                        <i class="fas fa-analytics mr-2"></i>분석
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 py-8">
+            <!-- Overview Tab -->
+            <div id="overview" class="tab-content">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <!-- Statistics Cards -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-blue-100 rounded-md">
+                                <i class="fas fa-users text-blue-600 text-xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-600">총 팀원 수</p>
+                                <p class="text-2xl font-semibold text-gray-900" id="totalMembers">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-green-100 rounded-md">
+                                <i class="fas fa-check-circle text-green-600 text-xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-600">완료된 평가</p>
+                                <p class="text-2xl font-semibold text-gray-900" id="completedEvaluations">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-yellow-100 rounded-md">
+                                <i class="fas fa-clock text-yellow-600 text-xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-600">대기중인 평가</p>
+                                <p class="text-2xl font-semibold text-gray-900" id="pendingEvaluations">0</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activities -->
+                <div class="bg-white rounded-lg shadow">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-medium text-gray-900">최근 활동</h3>
+                    </div>
+                    <div class="p-6">
+                        <div id="recentActivities" class="space-y-4">
+                            <div class="flex items-center space-x-3 text-gray-600">
+                                <i class="fas fa-info-circle text-blue-500"></i>
+                                <span>시스템이 초기화되었습니다. 설정 탭에서 평가 항목을 구성해주세요.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div id="settings" class="tab-content">
+                <div class="bg-white rounded-lg shadow">
+                    <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                        <h3 class="text-lg font-medium text-gray-900">평가 설정</h3>
+                        <div class="flex space-x-2">
+                            <button onclick="addEvaluationItem()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                                <i class="fas fa-plus mr-2"></i>항목 추가
+                            </button>
+                            <button onclick="resetEvaluationItems()" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">
+                                <i class="fas fa-trash mr-2"></i>초기화
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <!-- Team Selection -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">팀 선택</label>
+                            <select id="teamSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="handleTeamChange()">
+                                <option value="">팀을 선택하세요</option>
+                                <option value="development">개발팀</option>
+                                <option value="design">디자인팀</option>
+                                <option value="planning">기획팀</option>
+                                <option value="infrastructure">인프라팀</option>
+                            </select>
+                        </div>
+
+                        <!-- Evaluation Items -->
+                        <div class="mb-6">
+                            <h4 class="text-md font-medium text-gray-900 mb-4">평가 항목</h4>
+                            <div id="evaluationItems" class="space-y-3">
+                                <!-- 평가 항목들이 동적으로 추가됩니다 -->
+                            </div>
+                        </div>
+
+                        <!-- Save Button -->
+                        <div class="flex justify-end">
+                            <button onclick="saveSettings()" class="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
+                                <i class="fas fa-save mr-2"></i>설정 저장
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Evaluation Tab -->
+            <div id="evaluation" class="tab-content">
+                <div class="bg-white rounded-lg shadow">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-medium text-gray-900">성과 평가</h3>
+                    </div>
+                    <div class="p-6">
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">평가 대상자</label>
+                            <select id="evaluationTarget" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">평가 대상자를 선택하세요</option>
+                            </select>
+                        </div>
+                        
+                        <div id="evaluationForm" class="space-y-6">
+                            <!-- 평가 폼이 동적으로 생성됩니다 -->
+                        </div>
+                        
+                        <div class="mt-8 flex justify-end">
+                            <button onclick="submitEvaluation()" class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                                <i class="fas fa-check mr-2"></i>평가 제출
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reports Tab -->
+            <div id="reports" class="tab-content">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h3 class="text-lg font-medium text-gray-900">팀별 평균 점수</h3>
+                        </div>
+                        <div class="p-6">
+                            <canvas id="teamScoreChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h3 class="text-lg font-medium text-gray-900">평가 진행 현황</h3>
+                        </div>
+                        <div class="p-6">
+                            <canvas id="progressChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-6 bg-white rounded-lg shadow">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-medium text-gray-900">상세 보고서</h3>
+                    </div>
+                    <div class="p-6">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">이름</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">팀</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">총점</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">등급</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">평가일</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="reportTable" class="bg-white divide-y divide-gray-200">
+                                    <!-- 보고서 데이터가 동적으로 추가됩니다 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analysis Tab -->
+            <div id="analysis" class="tab-content">
+                <div class="bg-white rounded-lg shadow">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-medium text-gray-900">성과 분석</h3>
+                    </div>
+                    <div class="p-6">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div>
+                                <h4 class="text-md font-medium text-gray-900 mb-4">항목별 평균 점수</h4>
+                                <canvas id="itemAnalysisChart" width="400" height="300"></canvas>
+                            </div>
+                            <div>
+                                <h4 class="text-md font-medium text-gray-900 mb-4">점수 분포</h4>
+                                <canvas id="distributionChart" width="400" height="300"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="enhanced-settings-ui.js"></script>
+    <script>
+        // Global variables
+        let currentTab = 'overview';
+        let evaluationItems = [];
+        let teamData = {};
+        let evaluationData = [];
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+
+        function initializeApp() {
+            loadData();
+            showTab('overview');
+            updateOverviewStats();
+            renderSettings();
+        }
+
+        // Tab Management
+        function showTab(tabName) {
+            // Hide all tab contents
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(content => content.classList.remove('active'));
+            
+            // Remove active class from all buttons
+            const tabButtons = document.querySelectorAll('.tab-button');
+            tabButtons.forEach(button => button.classList.remove('active'));
+            
+            // Show selected tab content
+            const selectedTab = document.getElementById(tabName);
+            if (selectedTab) {
+                selectedTab.classList.add('active');
+            }
+            
+            // Add active class to selected button
+            const selectedButton = document.querySelector(`[onclick="showTab('${tabName}')"]`);
+            if (selectedButton) {
+                selectedButton.classList.add('active');
+            }
+            
+            currentTab = tabName;
+            
+            // Load tab-specific content
+            if (tabName === 'reports') {
+                generateReports();
+            } else if (tabName === 'analysis') {
+                generateAnalysis();
+            } else if (tabName === 'evaluation') {
+                loadEvaluationForm();
+            }
+        }
+
+        // Settings Management
+        function renderSettings() {
+            const container = document.getElementById('evaluationItems');
+            container.innerHTML = '';
+
+            evaluationItems.forEach((item, index) => {
+                const itemElement = createEvaluationItemElement(item, index);
+                container.appendChild(itemElement);
+            });
+
+            // Enhanced UI integration will be added here
+            if (typeof enhanceSettingsUI === 'function') {
+                enhanceSettingsUI();
+            }
+        }
+
+        function createEvaluationItemElement(item, index) {
+            const div = document.createElement('div');
+            div.className = 'evaluation-item bg-gray-50 p-4 rounded-lg border border-gray-200';
+            div.draggable = true;
+            div.dataset.index = index;
+
+            div.innerHTML = `
+                <div class="flex items-center space-x-4">
+                    <div class="drag-handle text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-grip-vertical"></i>
+                    </div>
+                    <div class="flex-1">
+                        <input type="text" 
+                               value="${item.name}" 
+                               onchange="updateItemName(${index}, this.value)"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="평가 항목명">
+                    </div>
+                    <div class="w-24">
+                        <input type="number" 
+                               value="${item.weight}" 
+                               onchange="updateItemWeight(${index}, this.value)"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="가중치" 
+                               min="0" 
+                               max="100">
+                    </div>
+                    <button onclick="removeEvaluationItem(${index})" 
+                            class="text-red-600 hover:text-red-800 transition-colors">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+
+            // Add drag and drop event listeners
+            div.addEventListener('dragstart', handleDragStart);
+            div.addEventListener('dragover', handleDragOver);
+            div.addEventListener('drop', handleDrop);
+            div.addEventListener('dragend', handleDragEnd);
+
+            return div;
+        }
+
+        function addEvaluationItem() {
+            const newItem = {
+                id: Date.now(),
+                name: `평가 항목 ${evaluationItems.length + 1}`,
+                weight: 10,
+                description: ''
+            };
+            evaluationItems.push(newItem);
+            renderSettings();
+        }
+
+        function removeEvaluationItem(index) {
+            if (confirm('이 평가 항목을 삭제하시겠습니까?')) {
+                evaluationItems.splice(index, 1);
+                renderSettings();
+            }
+        }
+
+        function updateItemName(index, name) {
+            if (evaluationItems[index]) {
+                evaluationItems[index].name = name;
+            }
+        }
+
+        function updateItemWeight(index, weight) {
+            if (evaluationItems[index]) {
+                evaluationItems[index].weight = parseInt(weight) || 0;
+            }
+        }
+
+        function resetEvaluationItems() {
+            if (confirm('모든 평가 항목을 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+                evaluationItems = [];
+                renderSettings();
+            }
+        }
+
+        function saveSettings() {
+            // Validate items
+            const invalidItems = evaluationItems.filter(item => !item.name.trim());
+            if (invalidItems.length > 0) {
+                alert('모든 평가 항목에 이름을 입력해주세요.');
+                return;
+            }
+
+            // Save to localStorage
+            localStorage.setItem('evaluationItems', JSON.stringify(evaluationItems));
+            localStorage.setItem('teamData', JSON.stringify(teamData));
+            
+            alert('설정이 저장되었습니다.');
+            updateOverviewStats();
+        }
+
+        // Drag and Drop functionality
+        let draggedElement = null;
+
+        function handleDragStart(e) {
+            draggedElement = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.outerHTML);
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+
+            if (draggedElement !== this) {
+                const draggedIndex = parseInt(draggedElement.dataset.index);
+                const targetIndex = parseInt(this.dataset.index);
+                
+                // Reorder array
+                const draggedItem = evaluationItems[draggedIndex];
+                evaluationItems.splice(draggedIndex, 1);
+                evaluationItems.splice(targetIndex, 0, draggedItem);
+                
+                // Re-render
+                renderSettings();
+            }
+
+            return false;
+        }
+
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            draggedElement = null;
+        }
+
+        // Team Management
+        function handleTeamChange() {
+            const teamSelect = document.getElementById('teamSelect');
+            const selectedTeam = teamSelect.value;
+            
+            if (selectedTeam && !teamData[selectedTeam]) {
+                teamData[selectedTeam] = {
+                    name: teamSelect.options[teamSelect.selectedIndex].text,
+                    members: []
+                };
+            }
+            
+            updateTeamMembers(selectedTeam);
+        }
+
+        function updateTeamMembers(teamId) {
+            // This would typically load from a database
+            // For now, we'll use sample data
+            if (teamId && teamData[teamId]) {
+                teamData[teamId].members = [
+                    { id: 1, name: '김철수', position: '선임개발자' },
+                    { id: 2, name: '이영희', position: '개발자' },
+                    { id: 3, name: '박민수', position: '주니어개발자' }
+                ];
+            }
+        }
+
+        // Evaluation Management
+        function loadEvaluationForm() {
+            const targetSelect = document.getElementById('evaluationTarget');
+            const formContainer = document.getElementById('evaluationForm');
+            
+            // Clear existing options
+            targetSelect.innerHTML = '<option value="">평가 대상자를 선택하세요</option>';
+            
+            // Add team members to select
+            Object.values(teamData).forEach(team => {
+                if (team.members) {
+                    team.members.forEach(member => {
+                        const option = document.createElement('option');
+                        option.value = member.id;
+                        option.textContent = `${member.name} (${team.name})`;
+                        targetSelect.appendChild(option);
+                    });
+                }
+            });
+            
+            // Generate evaluation form
+            generateEvaluationForm();
+        }
+
+        function generateEvaluationForm() {
+            const formContainer = document.getElementById('evaluationForm');
+            formContainer.innerHTML = '';
+
+            evaluationItems.forEach((item, index) => {
+                const formGroup = document.createElement('div');
+                formGroup.className = 'bg-gray-50 p-4 rounded-lg';
+                formGroup.innerHTML = `
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        ${item.name} (가중치: ${item.weight}%)
+                    </label>
+                    <div class="flex items-center space-x-4">
+                        <input type="range" 
+                               id="score_${item.id}" 
+                               min="0" 
+                               max="100" 
+                               value="50" 
+                               class="flex-1"
+                               oninput="updateScoreDisplay(${item.id}, this.value)">
+                        <span id="scoreDisplay_${item.id}" class="w-12 text-center font-medium">50</span>
+                        <span class="text-gray-500">점</span>
+                    </div>
+                    <textarea id="comment_${item.id}" 
+                              placeholder="평가 의견을 입력하세요..." 
+                              class="mt-3 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              rows="2"></textarea>
+                `;
+                formContainer.appendChild(formGroup);
+            });
+        }
+
+        function updateScoreDisplay(itemId, score) {
+            const display = document.getElementById(`scoreDisplay_${itemId}`);
+            if (display) {
+                display.textContent = score;
+            }
+        }
+
+        function submitEvaluation() {
+            const targetSelect = document.getElementById('evaluationTarget');
+            const targetId = targetSelect.value;
+            
+            if (!targetId) {
+                alert('평가 대상자를 선택해주세요.');
+                return;
+            }
+
+            const evaluation = {
+                id: Date.now(),
+                targetId: parseInt(targetId),
+                evaluatorId: 1, // Current user
+                date: new Date().toISOString(),
+                scores: {},
+                comments: {}
+            };
+
+            evaluationItems.forEach(item => {
+                const scoreInput = document.getElementById(`score_${item.id}`);
+                const commentInput = document.getElementById(`comment_${item.id}`);
+                
+                evaluation.scores[item.id] = parseInt(scoreInput.value);
+                evaluation.comments[item.id] = commentInput.value;
+            });
+
+            evaluationData.push(evaluation);
+            localStorage.setItem('evaluationData', JSON.stringify(evaluationData));
+            
+            alert('평가가 제출되었습니다.');
+            loadEvaluationForm(); // Reset form
+            updateOverviewStats();
+        }
+
+        // Data Management
+        function loadData() {
+            // Load evaluation items
+            const savedItems = localStorage.getItem('evaluationItems');
+            if (savedItems) {
+                evaluationItems = JSON.parse(savedItems);
+            } else {
+                // Default evaluation items
+                evaluationItems = [
+                    { id: 1, name: '업무 수행 능력', weight: 25, description: '담당 업무의 완수 정도와 품질' },
+                    { id: 2, name: '협업 및 소통', weight: 20, description: '팀워크와 의사소통 능력' },
+                    { id: 3, name: '문제 해결 능력', weight: 25, description: '문제 인식과 해결 방안 도출' },
+                    { id: 4, name: '자기 계발', weight: 15, description: '지속적인 학습과 성장 의지' },
+                    { id: 5, name: '리더십', weight: 15, description: '팀을 이끄는 능력과 책임감' }
+                ];
+            }
+
+            // Load team data
+            const savedTeamData = localStorage.getItem('teamData');
+            if (savedTeamData) {
+                teamData = JSON.parse(savedTeamData);
+            }
+
+            // Load evaluation data
+            const savedEvaluationData = localStorage.getItem('evaluationData');
+            if (savedEvaluationData) {
+                evaluationData = JSON.parse(savedEvaluationData);
+            }
+        }
+
+        function updateOverviewStats() {
+            // Calculate statistics
+            let totalMembers = 0;
+            Object.values(teamData).forEach(team => {
+                if (team.members) {
+                    totalMembers += team.members.length;
+                }
+            });
+
+            const completedEvaluations = evaluationData.length;
+            const pendingEvaluations = totalMembers - completedEvaluations;
+
+            // Update DOM
+            document.getElementById('totalMembers').textContent = totalMembers;
+            document.getElementById('completedEvaluations').textContent = completedEvaluations;
+            document.getElementById('pendingEvaluations').textContent = Math.max(0, pendingEvaluations);
+        }
+
+        // Reports and Analysis
+        function generateReports() {
+            generateTeamScoreChart();
+            generateProgressChart();
+            generateReportTable();
+        }
+
+        function generateTeamScoreChart() {
+            const ctx = document.getElementById('teamScoreChart');
+            if (!ctx) return;
+
+            // Sample data for demonstration
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['개발팀', '디자인팀', '기획팀', '인프라팀'],
+                    datasets: [{
+                        label: '평균 점수',
+                        data: [85, 78, 82, 88],
+                        backgroundColor: [
+                            'rgba(59, 130, 246, 0.8)',
+                            'rgba(16, 185, 129, 0.8)',
+                            'rgba(245, 158, 11, 0.8)',
+                            'rgba(239, 68, 68, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateProgressChart() {
+            const ctx = document.getElementById('progressChart');
+            if (!ctx) return;
+
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['완료', '진행중', '대기'],
+                    datasets: [{
+                        data: [65, 25, 10],
+                        backgroundColor: [
+                            'rgba(16, 185, 129, 0.8)',
+                            'rgba(245, 158, 11, 0.8)',
+                            'rgba(239, 68, 68, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true
+                }
+            });
+        }
+
+        function generateReportTable() {
+            const tbody = document.getElementById('reportTable');
+            if (!tbody) return;
+
+            // Clear existing rows
+            tbody.innerHTML = '';
+
+            // Sample data
+            const sampleData = [
+                { name: '김철수', team: '개발팀', score: 85, grade: 'A', date: '2024-01-15' },
+                { name: '이영희', team: '개발팀', score: 78, grade: 'B', date: '2024-01-14' },
+                { name: '박민수', team: '디자인팀', score: 92, grade: 'A+', date: '2024-01-13' }
+            ];
+
+            sampleData.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.team}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.score}점</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.grade}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.date}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function generateAnalysis() {
+            generateItemAnalysisChart();
+            generateDistributionChart();
+        }
+
+        function generateItemAnalysisChart() {
+            const ctx = document.getElementById('itemAnalysisChart');
+            if (!ctx) return;
+
+            new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: evaluationItems.map(item => item.name),
+                    datasets: [{
+                        label: '평균 점수',
+                        data: evaluationItems.map(() => Math.floor(Math.random() * 40) + 60),
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        pointBackgroundColor: 'rgba(59, 130, 246, 1)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateDistributionChart() {
+            const ctx = document.getElementById('distributionChart');
+            if (!ctx) return;
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['0-20', '21-40', '41-60', '61-80', '81-100'],
+                    datasets: [{
+                        label: '인원 수',
+                        data: [1, 3, 8, 15, 12],
+                        backgroundColor: 'rgba(59, 130, 246, 0.8)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Error handling for browser extensions and compatibility
+        window.addEventListener('error', function(e) {
+            if (e.message && e.message.includes('Extension context invalidated')) {
+                console.log('Browser extension conflict detected, continuing normally...');
+                return true;
+            }
+        });
+
+        window.addEventListener('unhandledrejection', function(e) {
+            if (e.reason && typeof e.reason === 'string' && e.reason.includes('Extension context')) {
+                console.log('Browser extension promise rejection, continuing normally...');
+                e.preventDefault();
+                return true;
+            }
+        });
+    </script>
+</body>
+</html>
