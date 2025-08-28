@@ -2,7 +2,12 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { serveStatic } from 'hono/cloudflare-workers'
 
-const app = new Hono()
+// D1 데이터베이스 타입 정의
+type Bindings = {
+  DB: D1Database;
+}
+
+const app = new Hono<{ Bindings: Bindings }>()
 
 // Enable CORS for frontend-backend communication
 app.use('/api/*', cors())
@@ -13,6 +18,197 @@ app.use('/*', serveStatic({ root: './public' }))
 // API routes
 app.get('/api/hello', (c) => {
   return c.json({ message: 'Hello from 클라우드사업본부 업무평가 시스템!' })
+})
+
+// 사용자 API
+app.get('/api/users', async (c) => {
+  try {
+    const { results } = await c.env.DB.prepare("SELECT * FROM users ORDER BY created_at DESC").all();
+    return c.json({ success: true, data: results });
+  } catch (error) {
+    return c.json({ success: false, error: 'Database error' }, 500);
+  }
+})
+
+app.post('/api/users', async (c) => {
+  try {
+    const { name, email, role = 'user' } = await c.req.json();
+    const id = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    await c.env.DB.prepare(`
+      INSERT INTO users (id, name, email, role) 
+      VALUES (?, ?, ?, ?)
+    `).bind(id, name, email, role).run();
+    
+    return c.json({ success: true, data: { id, name, email, role } });
+  } catch (error) {
+    return c.json({ success: false, error: 'Failed to create user' }, 500);
+  }
+})
+
+// 관리자 API
+app.get('/api/admins', async (c) => {
+  try {
+    const { results } = await c.env.DB.prepare(`
+      SELECT au.*, u.name, u.email 
+      FROM admin_users au 
+      JOIN users u ON au.user_id = u.id 
+      ORDER BY au.assigned_at DESC
+    `).all();
+    return c.json({ success: true, data: results });
+  } catch (error) {
+    return c.json({ success: false, error: 'Database error' }, 500);
+  }
+})
+
+app.post('/api/admins', async (c) => {
+  try {
+    const { user_id, assigned_by, source = 'manual' } = await c.req.json();
+    const id = `admin_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    await c.env.DB.prepare(`
+      INSERT INTO admin_users (id, user_id, assigned_by, source) 
+      VALUES (?, ?, ?, ?)
+    `).bind(id, user_id, assigned_by, source).run();
+    
+    return c.json({ success: true, data: { id, user_id, assigned_by, source } });
+  } catch (error) {
+    return c.json({ success: false, error: 'Failed to create admin' }, 500);
+  }
+})
+
+// 평가 항목 API
+app.get('/api/evaluation-items', async (c) => {
+  try {
+    const { results } = await c.env.DB.prepare(`
+      SELECT * FROM evaluation_items 
+      ORDER BY order_index ASC, created_at ASC
+    `).all();
+    return c.json({ success: true, data: results });
+  } catch (error) {
+    return c.json({ success: false, error: 'Database error' }, 500);
+  }
+})
+
+app.post('/api/evaluation-items', async (c) => {
+  try {
+    const { name, description, weight, type, order_index } = await c.req.json();
+    
+    const result = await c.env.DB.prepare(`
+      INSERT INTO evaluation_items (name, description, weight, type, order_index) 
+      VALUES (?, ?, ?, ?, ?)
+    `).bind(name, description, weight, type, order_index).run();
+    
+    return c.json({ success: true, data: { id: result.meta.last_row_id, name, description, weight, type, order_index } });
+  } catch (error) {
+    return c.json({ success: false, error: 'Failed to create evaluation item' }, 500);
+  }
+})
+
+// 조직 API
+app.get('/api/organizations', async (c) => {
+  try {
+    const { results } = await c.env.DB.prepare(`
+      SELECT * FROM organizations 
+      ORDER BY type, name
+    `).all();
+    return c.json({ success: true, data: results });
+  } catch (error) {
+    return c.json({ success: false, error: 'Database error' }, 500);
+  }
+})
+
+app.post('/api/organizations', async (c) => {
+  try {
+    const { name, type, parent_id } = await c.req.json();
+    const id = `org_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    await c.env.DB.prepare(`
+      INSERT INTO organizations (id, name, type, parent_id) 
+      VALUES (?, ?, ?, ?)
+    `).bind(id, name, type, parent_id).run();
+    
+    return c.json({ success: true, data: { id, name, type, parent_id } });
+  } catch (error) {
+    return c.json({ success: false, error: 'Failed to create organization' }, 500);
+  }
+})
+
+// 데이터베이스 초기화 API (개발용)
+app.post('/api/init-db', async (c) => {
+  try {
+    // 마이그레이션 실행
+    const migration = `
+      -- 사용자 테이블
+      CREATE TABLE IF NOT EXISTS users (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          email TEXT UNIQUE NOT NULL,
+          role TEXT NOT NULL DEFAULT 'user',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      -- 관리자 테이블
+      CREATE TABLE IF NOT EXISTS admin_users (
+          id TEXT PRIMARY KEY,
+          user_id TEXT,
+          assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          assigned_by TEXT,
+          source TEXT DEFAULT 'manual',
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
+      -- 평가 항목 테이블
+      CREATE TABLE IF NOT EXISTS evaluation_items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          description TEXT,
+          weight INTEGER DEFAULT 0,
+          type TEXT NOT NULL DEFAULT 'quantitative',
+          order_index INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      -- 조직 테이블
+      CREATE TABLE IF NOT EXISTS organizations (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          type TEXT NOT NULL,
+          parent_id TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (parent_id) REFERENCES organizations(id) ON DELETE CASCADE
+      );
+
+      -- 기본 데이터 삽입
+      INSERT OR IGNORE INTO users (id, name, email, role) VALUES 
+          ('admin', '관리자', 'admin@company.com', 'admin');
+
+      INSERT OR IGNORE INTO admin_users (id, user_id, assigned_by, source) VALUES 
+          ('admin_1', 'admin', 'system', 'manual');
+
+      INSERT OR IGNORE INTO evaluation_items (name, description, weight, type, order_index) VALUES 
+          ('업무 성과', '담당 업무의 목표 달성도 및 품질', 30, 'quantitative', 1),
+          ('협업 능력', '팀워크 및 의사소통 능력', 25, 'quantitative', 2),
+          ('전문성', '업무 관련 지식 및 기술 수준', 25, 'quantitative', 3),
+          ('개선 제안', '업무 개선 및 혁신 제안 능력', 20, 'qualitative', 4);
+    `;
+
+    // 배치로 실행
+    const statements = migration.split(';').filter(stmt => stmt.trim());
+    for (const statement of statements) {
+      if (statement.trim()) {
+        await c.env.DB.prepare(statement).run();
+      }
+    }
+
+    return c.json({ success: true, message: 'Database initialized successfully' });
+  } catch (error) {
+    console.error('Database initialization error:', error);
+    return c.json({ success: false, error: 'Failed to initialize database' }, 500);
+  }
 })
 
 // Default route

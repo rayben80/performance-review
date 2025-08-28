@@ -17,13 +17,23 @@ let currentUser = {
 };
 
 // 초기화
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     console.log('🚀 클라우드사업본부 업무평가 시스템 시작');
     
     try {
-        // 데이터 로드
-        console.log('데이터 로딩 중...');
-        loadFromStorage();
+        // 데이터베이스 연결 확인
+        console.log('데이터베이스 연결 확인 중...');
+        window.dbConnected = await checkDatabaseConnection();
+        
+        if (window.dbConnected) {
+            console.log('✅ D1 데이터베이스 모드로 실행');
+            // D1에서 데이터 로드
+            await loadFromDatabase();
+        } else {
+            console.log('⚠️ LocalStorage 모드로 실행');
+            // LocalStorage에서 데이터 로드
+            loadFromStorage();
+        }
         console.log('데이터 로드 완료');
         
         // 사용자 권한 확인 및 UI 설정 (데이터 로드 후)
@@ -47,6 +57,11 @@ document.addEventListener('DOMContentLoaded', function() {
         renderOrganizationChart();
         
         console.log('✅ 시스템 초기화 완료');
+        
+        // 데이터베이스 마이그레이션 버튼 표시 (LocalStorage 모드일 때)
+        if (!window.dbConnected) {
+            showDatabaseMigrationOption();
+        }
     } catch (error) {
         console.error('초기화 중 오류 발생:', error);
     }
@@ -1208,6 +1223,71 @@ function validateCurrentUserAdmin() {
             showToast('관리자 권한이 해제되었습니다.', 'warning');
             saveToStorage();
         }
+    }
+}
+
+// 데이터베이스 마이그레이션 UI 표시
+function showDatabaseMigrationOption() {
+    // LocalStorage에 데이터가 있는지 확인
+    const hasLocalData = localStorage.getItem('evaluationItems') || 
+                        localStorage.getItem('organizationData') || 
+                        localStorage.getItem('adminUsers');
+
+    if (hasLocalData) {
+        const migrationBanner = document.createElement('div');
+        migrationBanner.className = 'fixed bottom-4 right-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4 shadow-lg max-w-sm z-50';
+        migrationBanner.innerHTML = `
+            <div class="flex items-start space-x-3">
+                <i class="fas fa-database text-yellow-600 mt-1"></i>
+                <div>
+                    <h4 class="font-semibold text-yellow-900 mb-1">데이터베이스 업그레이드</h4>
+                    <p class="text-sm text-yellow-800 mb-3">LocalStorage 데이터를 영구 데이터베이스로 이전할 수 있습니다.</p>
+                    <div class="flex space-x-2">
+                        <button onclick="migrateToDB()" class="px-3 py-1 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-700">
+                            이전하기
+                        </button>
+                        <button onclick="backupLocalData()" class="px-3 py-1 bg-gray-500 text-white text-xs rounded hover:bg-gray-600">
+                            백업만
+                        </button>
+                        <button onclick="closeMigrationBanner()" class="px-3 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400">
+                            나중에
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(migrationBanner);
+        window.migrationBanner = migrationBanner;
+    }
+}
+
+// 데이터베이스 마이그레이션 실행
+async function migrateToDB() {
+    try {
+        const success = await dataMigration.migrateFromLocalStorage();
+        if (success) {
+            closeMigrationBanner();
+            // 페이지 새로고침하여 D1 모드로 전환
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        }
+    } catch (error) {
+        showToast('마이그레이션 실패: ' + error.message, 'error');
+    }
+}
+
+// LocalStorage 데이터 백업
+function backupLocalData() {
+    dataMigration.backupLocalStorage();
+}
+
+// 마이그레이션 배너 닫기
+function closeMigrationBanner() {
+    if (window.migrationBanner) {
+        window.migrationBanner.remove();
+        window.migrationBanner = null;
     }
 }
 
