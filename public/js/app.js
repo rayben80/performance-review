@@ -203,8 +203,21 @@ function initializeTabs() {
     const tabButtons = document.querySelectorAll('[onclick^="showTab"]');
     tabButtons.forEach(button => {
         button.addEventListener('click', function() {
-            const tabName = this.getAttribute('onclick').match(/showTab\\('([^']+)'\\)/)[1];
-            showTab(tabName);
+            try {
+                const onclickAttr = this.getAttribute('onclick');
+                if (onclickAttr) {
+                    const match = onclickAttr.match(/showTab\\('([^']+)'\\)/);
+                    if (match && match[1]) {
+                        showTab(match[1]);
+                    } else {
+                        console.warn('Invalid tab name format in onclick:', onclickAttr);
+                    }
+                } else {
+                    console.warn('No onclick attribute found on tab button');
+                }
+            } catch (error) {
+                console.error('Error in tab button click handler:', error);
+            }
         });
     });
 }
