@@ -1,29 +1,54 @@
 import { Hono } from 'hono'
 import { serveStatic } from 'hono/cloudflare-workers'
 import { EmailService } from './email-service'
+import { GmailFetchService } from './gmail-fetch-service'
 
 const app = new Hono()
 
 // 이메일 서비스 초기화 (환경 변수 기반)
-let emailService: EmailService | null = null
+let emailService: any = null
 
-// 환경 변수 기본값 (개발용)
+// 환경 변수 기본값 (개발 환경 임시 설정)
 const getEnvConfig = () => ({
-  gmailUser: globalThis.GMAIL_USER || 'rayben@forcs.com',
-  gmailAppPassword: globalThis.GMAIL_APP_PASSWORD || 'demo_password', // 실제 앱 비밀번호 필요
-  systemName: globalThis.SYSTEM_NAME || '클라우드사업본부 업무평가 시스템',
-  baseUrl: globalThis.BASE_URL || 'https://3000-i1vfivcrcs12trdqel9xg-6532622b.e2b.dev',
-  adminEmail: globalThis.ADMIN_EMAIL || 'admin@company.com'
+  gmailUser: 'rayben@forcs.com',
+  gmailAppPassword: 'gveq uzww grfz mdui', // 실제 앱 비밀번호
+  systemName: '클라우드사업본부 업무평가 시스템',
+  baseUrl: 'https://3000-i1vfivcrcs12trdqel9xg-6532622b.e2b.dev',
+  adminEmail: 'admin@company.com'
 })
 
 // 이메일 서비스 초기화 함수
-function initializeEmailService() {
+async function initializeEmailService() {
   try {
     const config = getEnvConfig()
-    emailService = new EmailService(config)
-    console.log('✅ Email service initialized')
+    
+    // Gmail 앱 비밀번호가 설정되어 있는지 확인
+    const hasGmailPassword = config.gmailAppPassword && 
+                            config.gmailAppPassword.length > 10 && 
+                            config.gmailAppPassword !== 'demo_password' &&
+                            config.gmailAppPassword !== 'your_16_character_app_password_here'
+    
+    if (hasGmailPassword) {
+      // Gmail Fetch 서비스 사용 (Cloudflare Workers 호환)
+      emailService = new GmailFetchService(config)
+      console.log('📧 Gmail Fetch 서비스 초기화 완료')
+      
+      // 연결 테스트
+      const testResult = await emailService.testConnection()
+      if (testResult) {
+        console.log('✅ Gmail 서비스 준비 완료')
+      }
+    } else {
+      // 시뮬레이션 모드
+      emailService = new EmailService(config)
+      console.log('📧 시뮬레이션 모드 이메일 서비스 초기화')
+      console.log('💡 실제 Gmail 발송을 원하시면 .dev.vars에 Gmail 앱 비밀번호를 설정하세요')
+    }
   } catch (error) {
     console.error('❌ Failed to initialize email service:', error)
+    // 폴백으로 시뮬레이션 모드 사용
+    const config = getEnvConfig()
+    emailService = new EmailService(config)
   }
 }
 
