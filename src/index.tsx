@@ -1,7 +1,31 @@
 import { Hono } from 'hono'
 import { serveStatic } from 'hono/cloudflare-workers'
+import { EmailService } from './email-service'
 
 const app = new Hono()
+
+// 이메일 서비스 초기화 (환경 변수 기반)
+let emailService: EmailService | null = null
+
+// 환경 변수 기본값 (개발용)
+const getEnvConfig = () => ({
+  gmailUser: globalThis.GMAIL_USER || 'rayben@forcs.com',
+  gmailAppPassword: globalThis.GMAIL_APP_PASSWORD || 'demo_password', // 실제 앱 비밀번호 필요
+  systemName: globalThis.SYSTEM_NAME || '클라우드사업본부 업무평가 시스템',
+  baseUrl: globalThis.BASE_URL || 'https://3000-i1vfivcrcs12trdqel9xg-6532622b.e2b.dev',
+  adminEmail: globalThis.ADMIN_EMAIL || 'admin@company.com'
+})
+
+// 이메일 서비스 초기화 함수
+function initializeEmailService() {
+  try {
+    const config = getEnvConfig()
+    emailService = new EmailService(config)
+    console.log('✅ Email service initialized')
+  } catch (error) {
+    console.error('❌ Failed to initialize email service:', error)
+  }
+}
 
 // 정적 파일 서빙 - Cloudflare Pages 방식  
 app.use('/public/*', serveStatic({ root: './' }))
@@ -102,6 +126,20 @@ app.post('/api/signup', async (c) => {
   existingUsers[email] = newUser
   globalThis.userDatabase = JSON.stringify(existingUsers)
   
+  // 이메일 알림 발송 (관리자에게)
+  if (emailService) {
+    try {
+      await emailService.notifySignupRequest({
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role
+      })
+      console.log('✅ Signup notification sent to admin')
+    } catch (error) {
+      console.error('❌ Failed to send signup notification:', error)
+    }
+  }
+  
   return c.json({ 
     success: true, 
     message: '회원가입 신청이 완료되었습니다. 관리자 승인을 기다려주세요.',
@@ -170,6 +208,20 @@ app.post('/api/users/approve', async (c) => {
   
   globalThis.userDatabase = JSON.stringify(users)
   
+  // 승인 알림 이메일 발송 (신청자에게)
+  if (emailService) {
+    try {
+      await emailService.notifyApproval({
+        name: users[email].name,
+        email: users[email].email,
+        approverName: approverEmail
+      })
+      console.log('✅ Approval notification sent to user')
+    } catch (error) {
+      console.error('❌ Failed to send approval notification:', error)
+    }
+  }
+  
   return c.json({ 
     success: true, 
     message: `${users[email].name}님의 계정이 승인되었습니다.`,
@@ -207,6 +259,21 @@ app.post('/api/users/reject', async (c) => {
   
   globalThis.userDatabase = JSON.stringify(users)
   
+  // 거부 알림 이메일 발송 (신청자에게)
+  if (emailService) {
+    try {
+      await emailService.notifyRejection({
+        name: users[email].name,
+        email: users[email].email,
+        reason: reason || '승인되지 않음',
+        approverName: approverEmail
+      })
+      console.log('✅ Rejection notification sent to user')
+    } catch (error) {
+      console.error('❌ Failed to send rejection notification:', error)
+    }
+  }
+  
   return c.json({ 
     success: true, 
     message: `${users[email].name}님의 계정 신청이 거부되었습니다.`,
@@ -221,6 +288,34 @@ app.post('/api/users/reject', async (c) => {
 // 로그아웃 API
 app.post('/api/logout', (c) => {
   return c.json({ success: true, message: '로그아웃 되었습니다.' })
+})
+
+// 이메일 테스트 API (개발용)
+app.post('/api/test-email', async (c) => {
+  if (!emailService) {
+    return c.json({ success: false, message: '이메일 서비스가 초기화되지 않았습니다.' }, 500)
+  }
+  
+  try {
+    const isConnected = await emailService.testConnection()
+    if (!isConnected) {
+      return c.json({ success: false, message: 'SMTP 연결 실패' }, 500)
+    }
+    
+    // 테스트 이메일 발송
+    const testResult = await emailService.notifySignupRequest({
+      name: '테스트 사용자',
+      email: 'test@example.com',
+      role: 'user'
+    })
+    
+    return c.json({ 
+      success: testResult, 
+      message: testResult ? '테스트 이메일이 발송되었습니다.' : '이메일 발송에 실패했습니다.'
+    })
+  } catch (error) {
+    return c.json({ success: false, message: '이메일 테스트 실패: ' + error.message }, 500)
+  }
 })
 
 // 조직 구조 관련 API
@@ -1631,6 +1726,10 @@ app.get('/dashboard', (c) => {
                                                 <i class="fas fa-download mr-2"></i>
                                                 사용자 목록 내보내기
                                             </button>
+                                            <button onclick="testEmailService()" class="w-full flex items-center justify-center px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors">
+                                                <i class="fas fa-envelope-open-text mr-2"></i>
+                                                이메일 알림 테스트
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -2618,7 +2717,8 @@ app.get('/dashboard', (c) => {
                     const csvData = currentAllUsers.map(user => [
                         user.name || '',
                         user.email || '',
-                        user.role === 'admin' ? '관리자' : '일반사용자',
+                        user.role === 'admin' ? '관리자' : 
+                        user.role === 'admin_user' ? '관리자겸사용자' : '일반사용자',
                         user.status === 'approved' ? '활성' : 
                         user.status === 'pending' ? '대기' : 
                         user.status === 'inactive' ? '비활성' : '거부됨',
@@ -2643,6 +2743,30 @@ app.get('/dashboard', (c) => {
                     alert('✅ 사용자 목록이 CSV 파일로 다운로드되었습니다.');
                 } catch (error) {
                     alert('❌ 파일 내보내기 중 오류가 발생했습니다.');
+                }
+            }
+            
+            // 이메일 서비스 테스트
+            async function testEmailService() {
+                if (!confirm('이메일 알림 시스템을 테스트하시겠습니까?\\n\\nrayben@forcs.com으로 테스트 메일이 발송됩니다.')) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/api/test-email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        alert('✅ ' + result.message + '\\n\\n📧 rayben@forcs.com 메일함을 확인해주세요.');
+                    } else {
+                        alert('❌ 이메일 테스트 실패: ' + result.message + '\\n\\n설정을 확인해주세요:\\n- Gmail 앱 비밀번호 설정\\n- SMTP 연결 상태');
+                    }
+                } catch (error) {
+                    alert('❌ 이메일 테스트 중 오류가 발생했습니다: ' + error.message);
                 }
             }
 
@@ -2724,5 +2848,8 @@ app.get('/dashboard', (c) => {
     </html>
   `)
 })
+
+// 이메일 서비스 초기화
+initializeEmailService()
 
 export default app

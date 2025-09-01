@@ -37,6 +37,7 @@
 - **사용자 비활성화/활성화**: 사유 입력과 함께 상태 변경
 - **완전 삭제**: 확인 절차와 함께 사용자 데이터 완전 제거
 - **CSV 내보내기**: 사용자 목록을 Excel 호환 형식으로 다운로드
+- **📧 이메일 알림 시스템**: 회원가입, 승인, 거부시 자동 이메일 발송
 
 ### 🛠 시스템 설정 대시보드
 #### 조직 구조 관리
@@ -89,11 +90,12 @@
 ### 사용자 관리
 - `GET /api/users` - 전체 사용자 목록
 - `GET /api/users/pending` - 승인 대기 사용자
-- `POST /api/users/approve` - 사용자 승인
-- `POST /api/users/reject` - 사용자 거부
+- `POST /api/users/approve` - 사용자 승인 (이메일 알림 포함)
+- `POST /api/users/reject` - 사용자 거부 (이메일 알림 포함)
 - `POST /api/users/bulk-approve` - 일괄 승인
 - `PUT /api/users/:email/status` - 사용자 상태 변경
 - `DELETE /api/users/:email` - 사용자 삭제
+- `POST /api/test-email` - 이메일 알림 테스트
 
 ### 조직 관리
 - `GET /api/organizations` - 조직 목록 조회
@@ -180,6 +182,14 @@ webapp/
 - **중복 가입 방지**: 이메일 기반 중복 검사
 - **승인 기반 접근**: 관리자 승인 후 로그인 가능
 - **세션 관리**: localStorage 기반 세션 유지
+
+### 📧 이메일 알림 시스템
+- **발송 계정**: rayben@forcs.com (Gmail SMTP)
+- **알림 유형**:
+  - 회원가입 신청 알림 (관리자에게)
+  - 계정 승인 완료 알림 (신청자에게)
+  - 계정 거부 알림 (신청자에게)
+- **보안**: Gmail 앱 비밀번호 사용, 환경 변수 관리
 
 ### 데이터 구조
 ```javascript
