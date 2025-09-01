@@ -21,7 +21,8 @@ app.post('/api/login', async (c) => {
   const defaultUsers = {
     'admin@company.com': { password: 'admin123', role: 'admin', name: '관리자' },
     'user@company.com': { password: 'user123', role: 'user', name: '사용자' },
-    'test@company.com': { password: 'test123', role: 'admin', name: '테스트 관리자' }
+    'test@company.com': { password: 'test123', role: 'admin_user', name: '관리자겸사용자' },
+    'manager@company.com': { password: 'manager123', role: 'admin_user', name: '팀장' }
   }
   
   // 회원가입된 사용자들 가져오기
@@ -725,8 +726,9 @@ app.get('/', (c) => {
                                 </label>
                                 <select id="signupRole" name="role" 
                                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
-                                    <option value="user">일반 사용자</option>
-                                    <option value="admin">관리자</option>
+                                    <option value="user">일반 사용자 (평가 대상자)</option>
+                                    <option value="admin">관리자 (시스템 관리 전용)</option>
+                                    <option value="admin_user">관리자겸사용자 (팀장, 관리자 권한 + 평가 대상자)</option>
                                 </select>
                             </div>
                         </div>
@@ -1793,7 +1795,12 @@ app.get('/dashboard', (c) => {
                 // 사용자 정보 표시
                 const userData = JSON.parse(user);
                 document.getElementById('userName').textContent = userData.name;
-                document.getElementById('userRole').textContent = userData.role === 'admin' ? '관리자' : '사용자';
+                const roleNames = {
+                    'admin': '관리자',
+                    'user': '사용자', 
+                    'admin_user': '관리자겸사용자'
+                };
+                document.getElementById('userRole').textContent = roleNames[userData.role] || '사용자';
                 
                 // 권한별 UI 표시
                 setupRoleBasedUI(userData.role);
@@ -1809,16 +1816,29 @@ app.get('/dashboard', (c) => {
                 const userDashboard = document.getElementById('userDashboard');
                 const dashboard = document.getElementById('dashboard');
 
-                if (role === 'admin') {
-                    // 관리자 UI 표시
+                if (role === 'admin' || role === 'admin_user') {
+                    // 관리자 또는 관리자겸사용자 UI 표시
                     adminSidebar.classList.remove('hidden');
                     userSidebar.classList.add('hidden');
+                    
+                    // 관리자겸사용자인 경우 특별 표시
+                    if (role === 'admin_user') {
+                        const adminModeIndicator = document.querySelector('#adminSidebar .bg-red-50');
+                        if (adminModeIndicator) {
+                            adminModeIndicator.innerHTML = 
+                                '<p class="text-sm font-medium text-orange-800">' +
+                                    '<i class="fas fa-users-cog mr-2"></i>관리자겸사용자 모드' +
+                                '</p>' +
+                                '<p class="text-xs text-orange-600 mt-1">관리 권한 + 평가 대상자</p>';
+                            adminModeIndicator.className = 'mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg';
+                        }
+                    }
                     
                     // 대시보드 내용을 관리자용으로 설정
                     dashboard.innerHTML = adminDashboard.innerHTML;
                     loadAdminDashboardData();
                 } else {
-                    // 사용자 UI 표시
+                    // 일반 사용자 UI 표시
                     userSidebar.classList.remove('hidden');
                     adminSidebar.classList.add('hidden');
                     
@@ -1997,7 +2017,12 @@ app.get('/dashboard', (c) => {
                                 'rejected': '<span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">거부됨</span>'
                             };
                             
-                            const roleIcon = user.role === 'admin' ? 'fas fa-crown text-yellow-500' : 'fas fa-user text-gray-500';
+                            const roleIcons = {
+                                'admin': 'fas fa-crown text-yellow-500',
+                                'admin_user': 'fas fa-users-cog text-orange-500',
+                                'user': 'fas fa-user text-gray-500'
+                            };
+                            const roleIcon = roleIcons[user.role] || roleIcons['user'];
                             
                             return '<div class="flex items-center justify-between p-3 border-b border-gray-100 last:border-b-0">' +
                                     '<div class="flex items-center space-x-3">' +
@@ -2384,14 +2409,25 @@ app.get('/dashboard', (c) => {
                             
                             const currentStatus = user.status || 'approved';
                             
+                            const roleIcons = {
+                                'admin': 'fas fa-crown text-yellow-600',
+                                'admin_user': 'fas fa-users-cog text-orange-600', 
+                                'user': 'fas fa-user text-gray-600'
+                            };
+                            const roleNames = {
+                                'admin': '관리자',
+                                'admin_user': '관리자겸사용자',
+                                'user': '사용자'
+                            };
+                            
                             return '<div class="flex items-center justify-between p-3 border border-gray-200 rounded-lg">' +
                                     '<div class="flex items-center space-x-3">' +
                                         '<div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">' +
-                                            '<i class="fas fa-user text-gray-600 text-sm"></i>' +
+                                            '<i class="' + (roleIcons[user.role] || roleIcons['user']) + ' text-sm"></i>' +
                                         '</div>' +
                                         '<div>' +
                                             '<div class="font-medium text-sm">' + user.name + '</div>' +
-                                            '<div class="text-xs text-gray-500">' + user.email + '</div>' +
+                                            '<div class="text-xs text-gray-500">' + user.email + ' • ' + (roleNames[user.role] || '사용자') + '</div>' +
                                         '</div>' +
                                     '</div>' +
                                     '<div class="flex items-center space-x-2">' +

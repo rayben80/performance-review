@@ -15,7 +15,10 @@
 ### 🔐 완전한 인증 및 회원가입 시스템
 - **로그인/회원가입**: 탭 기반 통합 인터페이스
 - **관리자 승인 워크플로우**: 회원가입 후 관리자 승인 필요
-- **역할 기반 접근 제어**: 관리자/사용자 권한 분리
+- **3단계 역할 기반 접근 제어**: 
+  - **관리자** (admin): 시스템 관리 전용
+  - **일반 사용자** (user): 평가 대상자
+  - **관리자겸사용자** (admin_user): 팀장, 관리 권한 + 평가 대상자
 - **세션 관리**: localStorage 기반 세션 유지
 
 ### 🏢 고도화된 조직 구조 관리
@@ -67,8 +70,9 @@
 
 ### 기본 테스트 계정
 - **관리자**: admin@company.com / admin123
-- **일반 사용자**: user@company.com / user123
-- **테스트 관리자**: test@company.com / test123
+- **일반 사용자**: user@company.com / user123  
+- **관리자겸사용자**: test@company.com / test123 (팀장 역할)
+- **팀장**: manager@company.com / manager123 (관리 권한 + 평가 대상자)
 
 ### 회원가입 테스트 사용자 (승인됨)
 - **김철수**: test1@company.com / test123 (일반 사용자)
@@ -181,10 +185,10 @@ webapp/
 ```javascript
 // 사용자 객체
 {
-  email: "user@company.com",
+  email: "user@company.com", 
   password: "encrypted_password",
   name: "사용자명",
-  role: "admin|user",
+  role: "admin|user|admin_user",  // 3단계 역할 시스템
   status: "approved|pending|rejected|inactive",
   createdAt: "2025-09-01T12:00:00.000Z",
   organizationId: "org_id_optional"
@@ -260,9 +264,10 @@ curl http://localhost:3000/api/health
 ### v2.0.0 (2025-09-01) - 시스템 설정 및 고도화된 사용자 관리
 - ✅ 완전한 로그인/회원가입 시스템
 - ✅ 관리자 승인 워크플로우
+- ✅ **3단계 역할 시스템** (관리자, 사용자, 관리자겸사용자)
 - ✅ 시스템 설정 대시보드 (4개 탭)
 - ✅ 조직 구조 관리 (팀/파트 CRUD)
-- ✅ **실제 클라우드사업본부 조직 구조 구현** (Sales팀, CX팀, 사업운영)
+- ✅ **실제 클라우드사업본부 조직 구조 구현** (Sales팀, CX팀, 사업운영)  
 - ✅ 고도화된 사용자 관리 (상태 변경, 일괄 작업, CSV 내보내기)
 - ✅ 평가 유형 설정 (정량/정성 평가)
 - ✅ 역할별 UI 분리 (관리자/사용자 전용 인터페이스)
