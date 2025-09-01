@@ -52,10 +52,11 @@ async function initializeEmailService() {
   }
 }
 
-// 정적 파일 서빙 - Cloudflare Pages 방식  
-app.use('/public/*', serveStatic({ root: './' }))
-app.use('/favicon.ico', serveStatic({ root: './public' }))
-app.use('/robots.txt', serveStatic({ root: './public' }))
+// 정적 파일 서빙 - Cloudflare Pages 방식
+app.use('/js/*', serveStatic())
+app.use('/css/*', serveStatic())
+app.use('/favicon.ico', serveStatic())
+app.use('/robots.txt', serveStatic())
 
 // API 라우트
 app.get('/api/health', (c) => {
@@ -2863,12 +2864,12 @@ app.get('/dashboard', (c) => {
             }
         </script>
 
-        <script src="/public/js/utils.js"></script>
-        <script src="/public/js/organization.js"></script>
-        <script src="/public/js/manual-input.js"></script>
-        <script src="/public/js/member-management.js"></script>
-        <script src="/public/js/excel-management.js"></script>
-        <script src="/public/js/app.js"></script>
+        <script src="/js/utils.js"></script>
+        <script src="/js/organization.js"></script>
+        <script src="/js/manual-input.js"></script>
+        <script src="/js/member-management.js"></script>
+        <script src="/js/excel-management.js"></script>
+        <script src="/js/app.js"></script>
     </body>
     </html>
   `)

@@ -75,7 +75,11 @@
 - **관리자겸사용자**: test@company.com / test123 (팀장 역할)
 - **팀장**: manager@company.com / manager123 (관리 권한 + 평가 대상자)
 
-### 회원가입 테스트 사용자 (승인됨)
+### Gmail 발송 테스트 완료된 사용자
+- **Gmail 테스트 사용자**: gmail.test2@example.com (승인됨) - ✅ 승인 알림 발송 완료
+- **거부 테스트 사용자**: reject.test@example.com (거부됨) - ✅ 거부 알림 발송 완료
+
+### 이전 테스트 사용자 (승인됨)
 - **김철수**: test1@company.com / test123 (일반 사용자)
 - **이영희**: test2@company.com / test123 (관리자)
 - **Jane "The Boss" O'Connor**: jane.doe@company.com / test123 (특수문자 테스트)
@@ -134,6 +138,37 @@
 2. 정량/정성 평가 항목 확인
 3. 평가 방식 설정 검토
 
+### 5. Gmail 발송 시스템 테스트 (✅ 실제 발송 활성화)
+1. **회원가입 알림 테스트**:
+   ```bash
+   curl -X POST http://localhost:3000/api/signup \
+     -H "Content-Type: application/json" \
+     -d '{"name": "테스트 사용자", "email": "test@example.com", "password": "password123", "confirmPassword": "password123", "role": "user"}'
+   ```
+   → rayben@forcs.com으로 회원가입 신청 알림 발송
+
+2. **승인 알림 테스트**:
+   ```bash
+   curl -X POST http://localhost:3000/api/users/approve \
+     -H "Content-Type: application/json" \
+     -d '{"email": "test@example.com", "approverEmail": "rayben@forcs.com"}'
+   ```
+   → 신청자에게 계정 승인 완료 알림 발송
+
+3. **거부 알림 테스트**:
+   ```bash
+   curl -X POST http://localhost:3000/api/users/reject \
+     -H "Content-Type: application/json" \
+     -d '{"email": "test@example.com", "approverEmail": "rayben@forcs.com", "reason": "테스트 거부 사유"}'
+   ```
+   → 신청자에게 계정 거부 알림 발송
+
+4. **발송 로그 확인**:
+   ```bash
+   pm2 logs webapp --nostream --lines 10
+   ```
+   → Gmail 발송 과정 상세 로깅 확인
+
 ## 🛠 기술 스택
 
 ### 백엔드
@@ -183,13 +218,17 @@ webapp/
 - **승인 기반 접근**: 관리자 승인 후 로그인 가능
 - **세션 관리**: localStorage 기반 세션 유지
 
-### 📧 이메일 알림 시스템
+### 📧 이메일 알림 시스템 (✅ 실제 Gmail 발송 활성화)
 - **발송 계정**: rayben@forcs.com (Gmail SMTP)
+- **발송 모드**: ✅ **실제 Gmail 발송 활성화** (시뮬레이션 모드 아님)
+- **인증 방식**: Gmail 앱 비밀번호 (`gveq uzww grfz mdui`)
 - **알림 유형**:
-  - 회원가입 신청 알림 (관리자에게)
-  - 계정 승인 완료 알림 (신청자에게)
-  - 계정 거부 알림 (신청자에게)
-- **보안**: Gmail 앱 비밀번호 사용, 환경 변수 관리
+  - **회원가입 신청 알림** (관리자 rayben@forcs.com에게)
+  - **계정 승인 완료 알림** (신청자에게) - 환영 메시지 및 로그인 안내
+  - **계정 거부 알림** (신청자에게) - 거부 사유 및 재신청 안내
+- **이메일 템플릿**: 반응형 HTML 디자인, 브랜딩 일관성
+- **발송 상태**: 상세한 로깅으로 발송 과정 추적 가능
+- **보안**: 환경 변수 관리, 다중 폴백 시스템
 
 ### 데이터 구조
 ```javascript
@@ -271,6 +310,13 @@ curl http://localhost:3000/api/health
 
 ## 📈 버전 히스토리
 
+### v2.1.0 (2025-09-01) - Gmail 발송 시스템 완성 및 최종 테스트
+- ✅ **실제 Gmail 발송 시스템 활성화** (rayben@forcs.com)
+- ✅ 3가지 알림 유형 실제 발송 테스트 완료
+- ✅ JavaScript 정적 파일 로딩 문제 해결
+- ✅ 모든 API 엔드포인트 정상 동작 확인
+- ✅ 다중 폴백 Gmail 발송 시스템 구현
+
 ### v2.0.0 (2025-09-01) - 시스템 설정 및 고도화된 사용자 관리
 - ✅ 완전한 로그인/회원가입 시스템
 - ✅ 관리자 승인 워크플로우
@@ -309,6 +355,6 @@ curl http://localhost:3000/api/health
 ---
 
 **마지막 업데이트**: 2025년 9월 1일  
-**버전**: v2.0.0 - 시스템 설정 및 고도화된 사용자 관리 시스템 완성  
-**현재 상태**: ✅ 모든 핵심 기능 정상 작동, 🚀 프로덕션 배포 준비 완료  
+**버전**: v2.1.0 - Gmail 발송 시스템 완성 및 최종 테스트  
+**현재 상태**: ✅ 모든 핵심 기능 정상 작동, 📧 실제 Gmail 발송 활성화, 🚀 프로덕션 배포 준비 완료  
 **라이브 서비스**: https://3000-i1vfivcrcs12trdqel9xg-6532622b.e2b.dev
