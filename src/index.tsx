@@ -2868,12 +2868,647 @@ app.get('/dashboard', (c) => {
             }
         </script>
 
-        <script src="/js/utils.js"></script>
-        <script src="/js/organization.js"></script>
-        <script src="/js/manual-input.js"></script>
-        <script src="/js/member-management.js"></script>
-        <script src="/js/excel-management.js"></script>
-        <script src="/js/app.js"></script>
+        <!-- 인라인 JavaScript - 로딩 순서 문제 해결 -->
+        <script>
+        // 유틸리티 함수들
+        window.showToast = function(message, type = 'info') {
+            const existingToast = document.querySelector('.toast-message');
+            if (existingToast) {
+                existingToast.remove();
+            }
+            
+            const toast = document.createElement('div');
+            toast.className = 'toast-message fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 max-w-sm';
+            
+            const colors = {
+                success: 'bg-green-500 text-white',
+                error: 'bg-red-500 text-white', 
+                warning: 'bg-yellow-500 text-white',
+                info: 'bg-blue-500 text-white'
+            };
+            
+            toast.className += ' ' + (colors[type] || colors.info);
+            toast.innerHTML = '<i class="fas fa-info-circle mr-2"></i>' + message;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        };
+
+        // 관리자 권한 체크
+        window.isAdmin = function() {
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            return user.role === 'admin' || user.role === 'admin_user';
+        };
+
+        // 데이터베이스 관련 함수들
+        async function loadFromDatabase() {
+            console.log('📖 데이터베이스에서 로드 중...');
+            // 현재는 LocalStorage 사용
+            loadFromStorage();
+        }
+
+        function loadFromStorage() {
+            console.log('📖 LocalStorage에서 로드 중...');
+            // 조직 데이터 로드
+            const orgData = localStorage.getItem('organizationData');
+            if (orgData) {
+                window.organizationData = JSON.parse(orgData);
+            } else {
+                window.organizationData = {};
+            }
+        }
+
+        // 설정 탭 전환 함수
+        window.showSettingsTab = function(tabName) {
+            console.log('Settings tab switching to:', tabName);
+            
+            // 모든 설정 탭 숨기기
+            const settingsContents = document.querySelectorAll('.settings-content');
+            settingsContents.forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            // 모든 탭 버튼 비활성화
+            const tabButtons = document.querySelectorAll('.settings-tab-btn');
+            tabButtons.forEach(btn => {
+                btn.classList.remove('border-blue-500', 'text-blue-600');
+                btn.classList.add('border-transparent', 'text-gray-500');
+            });
+            
+            // 선택된 탭 활성화
+            const targetContent = document.getElementById(tabName + 'Settings');
+            const targetButton = document.getElementById(tabName + 'Tab');
+            
+            if (targetContent) {
+                targetContent.classList.remove('hidden');
+            }
+            
+            if (targetButton) {
+                targetButton.classList.remove('border-transparent', 'text-gray-500');
+                targetButton.classList.add('border-blue-500', 'text-blue-600');
+            }
+            
+            // 탭별 특별 처리
+            if (tabName === 'organization') {
+                setTimeout(() => {
+                    if (typeof refreshOrganization === 'function') {
+                        refreshOrganization();
+                    }
+                }, 100);
+            } else if (tabName === 'users') {
+                setTimeout(() => {
+                    if (typeof refreshPendingUsers === 'function') {
+                        refreshPendingUsers();
+                    }
+                    if (typeof refreshAllUsers === 'function') {
+                        refreshAllUsers();
+                    }
+                }, 100);
+            }
+        };
+
+        // 조직 관리 함수들
+        window.refreshOrganization = async function() {
+            try {
+                const response = await fetch('/api/organizations');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const container = document.getElementById('organizationTree');
+                    if (!container) return;
+                    
+                    if (data.organizations.length === 0) {
+                        container.innerHTML = 
+                            '<div class="text-center py-8 text-gray-500">' +
+                                '<i class="fas fa-building text-3xl mb-4"></i>' +
+                                '<p>조직이 아직 설정되지 않았습니다.</p>' +
+                                '<button onclick="initializeRealOrganization()" class="mt-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">' +
+                                    '<i class="fas fa-sync mr-2"></i>실제 구조로 초기화' +
+                                '</button>' +
+                            '</div>';
+                    } else {
+                        let html = '';
+                        
+                        // 팀별로 그룹화
+                        const teams = data.organizations.filter(org => org.type === 'team');
+                        const parts = data.organizations.filter(org => org.type === 'part');
+                        
+                        teams.forEach(team => {
+                            html += '<div class="border border-gray-200 rounded-lg p-4 mb-4">';
+                            html += '<div class="flex items-center justify-between mb-3">';
+                            html += '<h4 class="text-lg font-semibold text-blue-600">';
+                            html += '<i class="fas fa-users mr-2"></i>' + team.name;
+                            html += '</h4>';
+                            html += '<div class="flex space-x-2">';
+                            html += '<button onclick="editOrganization(\\'' + team.id + '\\')" class="text-blue-600 hover:text-blue-800">';
+                            html += '<i class="fas fa-edit"></i>';
+                            html += '</button>';
+                            html += '<button onclick="deleteOrganization(\\'' + team.id + '\\')" class="text-red-600 hover:text-red-800">';
+                            html += '<i class="fas fa-trash"></i>';
+                            html += '</button>';
+                            html += '</div>';
+                            html += '</div>';
+                            
+                            // 해당 팀의 파트들
+                            const teamParts = parts.filter(part => part.parentId === team.id);
+                            if (teamParts.length > 0) {
+                                html += '<div class="ml-6 space-y-2">';
+                                teamParts.forEach(part => {
+                                    html += '<div class="flex items-center justify-between p-2 bg-gray-50 rounded border-l-4 border-green-400">';
+                                    html += '<span class="font-medium text-gray-800">';
+                                    html += '<i class="fas fa-sitemap mr-2 text-green-600"></i>' + part.name;
+                                    html += '</span>';
+                                    html += '<div class="flex space-x-2">';
+                                    html += '<button onclick="editOrganization(\\'' + part.id + '\\')" class="text-blue-600 hover:text-blue-800">';
+                                    html += '<i class="fas fa-edit"></i>';
+                                    html += '</button>';
+                                    html += '<button onclick="deleteOrganization(\\'' + part.id + '\\')" class="text-red-600 hover:text-red-800">';
+                                    html += '<i class="fas fa-trash"></i>';
+                                    html += '</button>';
+                                    html += '</div>';
+                                    html += '</div>';
+                                });
+                                html += '</div>';
+                            }
+                            html += '</div>';
+                        });
+                        
+                        container.innerHTML = html;
+                    }
+                    
+                    // 상위 조직 선택 옵션 업데이트
+                    const parentSelect = document.getElementById('parentOrg');
+                    if (parentSelect) {
+                        const teams = data.organizations.filter(org => org.type === 'team');
+                        parentSelect.innerHTML = '<option value="">클라우드사업본부 (최상위)</option>';
+                        teams.forEach(team => {
+                            parentSelect.innerHTML += '<option value="' + team.id + '">' + team.name + '</option>';
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('조직 목록 로드 오류:', error);
+                showToast('조직 목록을 불러올 수 없습니다.', 'error');
+            }
+        };
+
+        // 실제 조직 구조 초기화
+        window.initializeRealOrganization = async function() {
+            if (!isAdmin()) {
+                showToast('관리자 권한이 필요합니다.', 'error');
+                return;
+            }
+            
+            if (!confirm('⚠️ 기존 조직 데이터를 모두 삭제하고 실제 클라우드사업본부 구조로 초기화하시겠습니까?\\n\\n초기화될 구조:\\n• Sales팀 (영업, 영업관리)\\n• CX팀 (고객서비스, 기술지원, Technical Writing, Technical Marketing, 사업운영)')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/organizations/initialize', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('클라우드사업본부 조직 구조가 초기화되었습니다.', 'success');
+                    refreshOrganization();
+                } else {
+                    showToast(data.message || '초기화에 실패했습니다.', 'error');
+                }
+            } catch (error) {
+                console.error('조직 구조 초기화 오류:', error);
+                showToast('초기화 중 오류가 발생했습니다.', 'error');
+            }
+        };
+
+        // 사용자 관리 함수들
+        window.refreshPendingUsers = async function() {
+            try {
+                const response = await fetch('/api/users/pending');
+                const data = await response.json();
+                
+                const container = document.getElementById('pendingUsersContainer');
+                if (!container) return;
+                
+                if (data.success) {
+                    if (data.users.length === 0) {
+                        container.innerHTML = 
+                            '<div class="text-center py-8 text-gray-500">' +
+                                '<i class="fas fa-user-check text-3xl mb-4"></i>' +
+                                '<p>승인 대기 중인 회원이 없습니다.</p>' +
+                            '</div>';
+                    } else {
+                        const usersHTML = data.users.map((user, index) => 
+                            '<div class="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-lg">' +
+                                '<div class="flex items-center space-x-3">' +
+                                    '<div class="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">' +
+                                        '<i class="fas fa-user text-yellow-600"></i>' +
+                                    '</div>' +
+                                    '<div>' +
+                                        '<h4 class="font-medium text-gray-900">' + user.name + '</h4>' +
+                                        '<p class="text-sm text-gray-600">' + user.email + '</p>' +
+                                        '<p class="text-xs text-gray-500">' +
+                                            (user.role === 'admin' ? '관리자' : user.role === 'admin_user' ? '관리자겸사용자' : '일반 사용자') + ' • ' + 
+                                            new Date(user.createdAt).toLocaleString('ko-KR') +
+                                        '</p>' +
+                                    '</div>' +
+                                '</div>' +
+                                '<div class="flex space-x-2">' +
+                                    '<button onclick="approveUser(\\'' + user.email + '\\')" ' +
+                                            'class="px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors">' +
+                                        '<i class="fas fa-check mr-1"></i>승인' +
+                                    '</button>' +
+                                    '<button onclick="rejectUser(\\'' + user.email + '\\')" ' +
+                                            'class="px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors">' +
+                                        '<i class="fas fa-times mr-1"></i>거부' +
+                                    '</button>' +
+                                '</div>' +
+                            '</div>'
+                        ).join('');
+                        
+                        container.innerHTML = 
+                            '<div class="mb-4">' +
+                                '<p class="text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg p-3">' +
+                                    '<i class="fas fa-exclamation-triangle mr-2"></i>' +
+                                    '총 <strong>' + data.users.length + '명</strong>의 회원이 승인을 기다리고 있습니다.' +
+                                '</p>' +
+                            '</div>' +
+                            usersHTML;
+                    }
+                } else {
+                    throw new Error(data.message || '데이터 로드 실패');
+                }
+            } catch (error) {
+                console.error('승인 대기 회원 로드 오류:', error);
+                const container = document.getElementById('pendingUsersContainer');
+                if (container) {
+                    container.innerHTML = 
+                        '<div class="text-center py-8 text-red-500">' +
+                            '<i class="fas fa-exclamation-circle text-2xl mb-2"></i>' +
+                            '<p>데이터를 불러올 수 없습니다.</p>' +
+                            '<button onclick="refreshPendingUsers()" class="mt-2 text-sm text-blue-600 hover:text-blue-800">다시 시도</button>' +
+                        '</div>';
+                }
+            }
+        };
+
+        window.refreshAllUsers = async function() {
+            try {
+                const response = await fetch('/api/users');
+                const data = await response.json();
+                
+                const container = document.getElementById('allUsersContainer');
+                if (!container) return;
+                
+                if (data.success) {
+                    if (data.users.length === 0) {
+                        container.innerHTML = 
+                            '<div class="text-center py-8 text-gray-500">' +
+                                '<i class="fas fa-users text-3xl mb-4"></i>' +
+                                '<p>등록된 사용자가 없습니다.</p>' +
+                            '</div>';
+                    } else {
+                        const usersHTML = data.users.map(user => {
+                            const statusColors = {
+                                'approved': 'bg-green-100 text-green-800',
+                                'pending': 'bg-yellow-100 text-yellow-800',
+                                'rejected': 'bg-red-100 text-red-800',
+                                'inactive': 'bg-gray-100 text-gray-800'
+                            };
+                            
+                            const statusNames = {
+                                'approved': '승인됨',
+                                'pending': '대기중',
+                                'rejected': '거부됨',
+                                'inactive': '비활성'
+                            };
+                            
+                            return '<div class="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg">' +
+                                '<div class="flex items-center space-x-3">' +
+                                    '<div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">' +
+                                        '<i class="fas fa-user text-blue-600"></i>' +
+                                    '</div>' +
+                                    '<div>' +
+                                        '<h4 class="font-medium text-gray-900">' + user.name + '</h4>' +
+                                        '<p class="text-sm text-gray-600">' + user.email + '</p>' +
+                                        '<div class="flex items-center space-x-2 mt-1">' +
+                                            '<span class="text-xs px-2 py-1 rounded-full ' + (statusColors[user.status] || 'bg-gray-100 text-gray-800') + '">' +
+                                                (statusNames[user.status] || user.status) +
+                                            '</span>' +
+                                            '<span class="text-xs text-gray-500">' +
+                                                (user.role === 'admin' ? '관리자' : user.role === 'admin_user' ? '관리자겸사용자' : '일반 사용자') +
+                                            '</span>' +
+                                        '</div>' +
+                                    '</div>' +
+                                '</div>' +
+                                '<div class="flex space-x-2">' +
+                                    '<button onclick="editUser(\\'' + user.email + '\\')" ' +
+                                            'class="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition-colors">' +
+                                        '<i class="fas fa-edit mr-1"></i>수정' +
+                                    '</button>' +
+                                '</div>' +
+                            '</div>';
+                        }).join('');
+                        
+                        container.innerHTML = usersHTML;
+                    }
+                } else {
+                    throw new Error(data.message || '데이터 로드 실패');
+                }
+            } catch (error) {
+                console.error('전체 사용자 로드 오류:', error);
+                const container = document.getElementById('allUsersContainer');
+                if (container) {
+                    container.innerHTML = 
+                        '<div class="text-center py-8 text-red-500">' +
+                            '<i class="fas fa-exclamation-circle text-2xl mb-2"></i>' +
+                            '<p>데이터를 불러올 수 없습니다.</p>' +
+                            '<button onclick="refreshAllUsers()" class="mt-2 text-sm text-blue-600 hover:text-blue-800">다시 시도</button>' +
+                        '</div>';
+                }
+            }
+        };
+
+        // 사용자 승인/거부 함수들
+        window.approveUser = async function(email) {
+            if (!isAdmin()) {
+                showToast('관리자 권한이 필요합니다.', 'error');
+                return;
+            }
+            
+            try {
+                const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                const response = await fetch('/api/users/approve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        email: email, 
+                        approverEmail: currentUser.email 
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    refreshPendingUsers();
+                    refreshAllUsers();
+                } else {
+                    showToast(data.message, 'error');
+                }
+            } catch (error) {
+                console.error('사용자 승인 오류:', error);
+                showToast('승인 처리 중 오류가 발생했습니다.', 'error');
+            }
+        };
+
+        window.rejectUser = async function(email) {
+            if (!isAdmin()) {
+                showToast('관리자 권한이 필요합니다.', 'error');
+                return;
+            }
+            
+            const reason = prompt('거부 사유를 입력하세요 (선택사항):');
+            if (reason === null) return; // 취소 버튼
+            
+            try {
+                const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                const response = await fetch('/api/users/reject', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        email: email, 
+                        reason: reason,
+                        approverEmail: currentUser.email 
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast(data.message, 'info');
+                    refreshPendingUsers();
+                    refreshAllUsers();
+                } else {
+                    showToast(data.message, 'error');
+                }
+            } catch (error) {
+                console.error('사용자 거부 오류:', error);
+                showToast('거부 처리 중 오류가 발생했습니다.', 'error');
+            }
+        };
+
+        // 일괄 승인
+        window.bulkApproveUsers = async function() {
+            if (!isAdmin()) {
+                showToast('관리자 권한이 필요합니다.', 'error');
+                return;
+            }
+            
+            if (!confirm('정말로 대기 중인 모든 회원을 승인하시겠습니까?')) {
+                return;
+            }
+            
+            try {
+                const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                const response = await fetch('/api/users/bulk-approve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ approverEmail: currentUser.email })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    refreshPendingUsers();
+                    refreshAllUsers();
+                } else {
+                    showToast(data.message, 'error');
+                }
+            } catch (error) {
+                console.error('일괄 승인 오류:', error);
+                showToast('일괄 승인 중 오류가 발생했습니다.', 'error');
+            }
+        };
+
+        // 조직 편집/삭제 함수들
+        window.editOrganization = async function(orgId) {
+            if (!isAdmin()) {
+                showToast('관리자 권한이 필요합니다.', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/organizations');
+                const data = await response.json();
+                
+                if (!data.success) {
+                    showToast('조직 데이터를 가져올 수 없습니다.', 'error');
+                    return;
+                }
+                
+                const org = data.organizations.find(o => o.id === orgId);
+                if (!org) {
+                    showToast('조직 정보를 찾을 수 없습니다.', 'error');
+                    return;
+                }
+                
+                const typeText = org.type === 'team' ? '팀' : '파트';
+                const newName = prompt(typeText + ' 이름을 수정하세요:', org.name);
+                
+                if (newName && newName.trim() !== org.name) {
+                    const updateResponse = await fetch('/api/organizations/' + orgId, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: newName.trim() })
+                    });
+                    
+                    const updateData = await updateResponse.json();
+                    
+                    if (updateData.success) {
+                        refreshOrganization();
+                        showToast('조직 정보가 수정되었습니다.', 'success');
+                    } else {
+                        showToast(updateData.message || '수정에 실패했습니다.', 'error');
+                    }
+                }
+            } catch (error) {
+                console.error('조직 수정 오류:', error);
+                showToast('조직 수정 중 오류가 발생했습니다.', 'error');
+            }
+        };
+
+        window.deleteOrganization = async function(orgId) {
+            if (!isAdmin()) {
+                showToast('관리자 권한이 필요합니다.', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/organizations');
+                const data = await response.json();
+                
+                if (!data.success) {
+                    showToast('조직 데이터를 가져올 수 없습니다.', 'error');
+                    return;
+                }
+                
+                const org = data.organizations.find(o => o.id === orgId);
+                if (!org) {
+                    showToast('조직 정보를 찾을 수 없습니다.', 'error');
+                    return;
+                }
+                
+                const typeText = org.type === 'team' ? '팀' : '파트';
+                if (confirm('"' + org.name + '" ' + typeText + '를 삭제하시겠습니까?')) {
+                    const deleteResponse = await fetch('/api/organizations/' + orgId, {
+                        method: 'DELETE'
+                    });
+                    
+                    const deleteData = await deleteResponse.json();
+                    
+                    if (deleteData.success) {
+                        refreshOrganization();
+                        showToast('조직이 삭제되었습니다.', 'info');
+                    } else {
+                        showToast(deleteData.message || '삭제에 실패했습니다.', 'error');
+                    }
+                }
+            } catch (error) {
+                console.error('조직 삭제 오류:', error);
+                showToast('조직 삭제 중 오류가 발생했습니다.', 'error');
+            }
+        };
+
+        // 시스템 관리 함수들
+        window.exportUserList = function() {
+            showToast('사용자 목록 내보내기 기능을 준비 중입니다.', 'info');
+        };
+
+        window.testEmailService = async function() {
+            try {
+                const response = await fetch('/api/test-email', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('테스트 이메일이 발송되었습니다.', 'success');
+                } else {
+                    showToast(data.message || '이메일 테스트에 실패했습니다.', 'error');
+                }
+            } catch (error) {
+                console.error('이메일 테스트 오류:', error);
+                showToast('이메일 테스트 중 오류가 발생했습니다.', 'error');
+            }
+        };
+
+        window.cleanupInactiveUsers = function() {
+            showToast('비활성 사용자 정리 기능을 준비 중입니다.', 'info');
+        };
+
+        window.showUserStats = function() {
+            showToast('사용자 통계 기능을 준비 중입니다.', 'info');
+        };
+
+        // 조직 폼 처리
+        window.addEventListener('DOMContentLoaded', function() {
+            // 조직 추가 폼 처리
+            const orgForm = document.getElementById('organizationForm');
+            if (orgForm) {
+                orgForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    if (!isAdmin()) {
+                        showToast('관리자 권한이 필요합니다.', 'error');
+                        return;
+                    }
+                    
+                    const formData = new FormData(e.target);
+                    const orgData = {
+                        name: document.getElementById('orgName').value.trim(),
+                        type: document.getElementById('orgType').value,
+                        parentId: document.getElementById('parentOrg').value || null,
+                        description: document.getElementById('orgDescription').value.trim()
+                    };
+                    
+                    if (!orgData.name) {
+                        showToast('조직명을 입력해주세요.', 'error');
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch('/api/organizations', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(orgData)
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            showToast('조직이 추가되었습니다.', 'success');
+                            e.target.reset();
+                            refreshOrganization();
+                        } else {
+                            showToast(data.message || '조직 추가에 실패했습니다.', 'error');
+                        }
+                    } catch (error) {
+                        console.error('조직 추가 오류:', error);
+                        showToast('조직 추가 중 오류가 발생했습니다.', 'error');
+                    }
+                });
+            }
+        });
+
+        console.log('✅ 인라인 JavaScript 모듈이 로드되었습니다.');
+        </script>
     </body>
     </html>
   `)
