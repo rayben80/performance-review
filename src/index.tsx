@@ -34,6 +34,18 @@ app.post('/api/login', async (c) => {
   const allUsers = { ...defaultUsers, ...registeredUsers }
   
   if (allUsers[email] && allUsers[email].password === password) {
+    // 회원가입 사용자의 경우 승인 상태 확인
+    if (registeredUsers[email] && registeredUsers[email].status !== 'approved') {
+      const statusMessages = {
+        'pending': '계정이 아직 승인되지 않았습니다. 관리자의 승인을 기다려주세요.',
+        'rejected': '계정이 거부되었습니다. 관리자에게 문의하세요.'
+      }
+      return c.json({ 
+        success: false, 
+        message: statusMessages[registeredUsers[email].status] || '계정에 문제가 있습니다.' 
+      }, 403)
+    }
+    
     return c.json({ 
       success: true, 
       user: {
@@ -77,13 +89,16 @@ app.post('/api/signup', async (c) => {
     return c.json({ success: false, message: '이미 등록된 이메일입니다.' }, 409)
   }
   
-  // 새 사용자 추가
+  // 새 사용자 추가 (승인 대기 상태)
   const newUser = {
     email,
     password, // 실제 운영에서는 해시화해야 함
     name,
     role: role || 'user', // 기본값은 일반 사용자
-    createdAt: new Date().toISOString()
+    status: 'pending', // 승인 대기 상태
+    createdAt: new Date().toISOString(),
+    approvedAt: null,
+    approvedBy: null
   }
   
   existingUsers[email] = newUser
@@ -91,11 +106,12 @@ app.post('/api/signup', async (c) => {
   
   return c.json({ 
     success: true, 
-    message: '회원가입이 완료되었습니다.',
+    message: '회원가입 신청이 완료되었습니다. 관리자 승인을 기다려주세요.',
     user: {
       email: newUser.email,
       name: newUser.name,
-      role: newUser.role
+      role: newUser.role,
+      status: newUser.status
     }
   })
 })
@@ -107,10 +123,101 @@ app.get('/api/users', async (c) => {
     email: user.email,
     name: user.name,
     role: user.role,
-    createdAt: user.createdAt
+    status: user.status || 'approved', // 기존 사용자는 승인됨으로 처리
+    createdAt: user.createdAt,
+    approvedAt: user.approvedAt,
+    approvedBy: user.approvedBy
   }))
   
   return c.json({ success: true, users: userList })
+})
+
+// 대기 중인 회원 목록 API
+app.get('/api/users/pending', async (c) => {
+  const users = JSON.parse(globalThis.userDatabase || '{}')
+  const pendingUsers = Object.values(users)
+    .filter(user => user.status === 'pending')
+    .map(user => ({
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      createdAt: user.createdAt
+    }))
+  
+  return c.json({ success: true, users: pendingUsers })
+})
+
+// 회원 승인 API
+app.post('/api/users/approve', async (c) => {
+  const { email, approverEmail } = await c.req.json()
+  
+  if (!email || !approverEmail) {
+    return c.json({ success: false, message: '필수 정보가 누락되었습니다.' }, 400)
+  }
+  
+  const users = JSON.parse(globalThis.userDatabase || '{}')
+  
+  if (!users[email]) {
+    return c.json({ success: false, message: '사용자를 찾을 수 없습니다.' }, 404)
+  }
+  
+  if (users[email].status !== 'pending') {
+    return c.json({ success: false, message: '승인 대기 상태가 아닙니다.' }, 400)
+  }
+  
+  // 사용자 승인
+  users[email].status = 'approved'
+  users[email].approvedAt = new Date().toISOString()
+  users[email].approvedBy = approverEmail
+  
+  globalThis.userDatabase = JSON.stringify(users)
+  
+  return c.json({ 
+    success: true, 
+    message: `${users[email].name}님의 계정이 승인되었습니다.`,
+    user: {
+      email: users[email].email,
+      name: users[email].name,
+      status: users[email].status
+    }
+  })
+})
+
+// 회원 거부 API
+app.post('/api/users/reject', async (c) => {
+  const { email, reason, approverEmail } = await c.req.json()
+  
+  if (!email || !approverEmail) {
+    return c.json({ success: false, message: '필수 정보가 누락되었습니다.' }, 400)
+  }
+  
+  const users = JSON.parse(globalThis.userDatabase || '{}')
+  
+  if (!users[email]) {
+    return c.json({ success: false, message: '사용자를 찾을 수 없습니다.' }, 404)
+  }
+  
+  if (users[email].status !== 'pending') {
+    return c.json({ success: false, message: '승인 대기 상태가 아닙니다.' }, 400)
+  }
+  
+  // 사용자 거부
+  users[email].status = 'rejected'
+  users[email].rejectedAt = new Date().toISOString()
+  users[email].rejectedBy = approverEmail
+  users[email].rejectReason = reason || '승인되지 않음'
+  
+  globalThis.userDatabase = JSON.stringify(users)
+  
+  return c.json({ 
+    success: true, 
+    message: `${users[email].name}님의 계정 신청이 거부되었습니다.`,
+    user: {
+      email: users[email].email,
+      name: users[email].name,
+      status: users[email].status
+    }
+  })
 })
 
 // 로그아웃 API
@@ -595,8 +702,53 @@ app.get('/dashboard', (c) => {
                         </div>
                     </div>
 
-                    <!-- 다른 탭 내용들은 JavaScript로 동적 생성 -->
-                    <div id="settings" class="tab-content"></div>
+                    <!-- 설정 관리 탭 -->
+                    <div id="settings" class="tab-content">
+                        <div class="mb-6">
+                            <h2 class="text-2xl font-bold text-gray-900 mb-2">설정 관리</h2>
+                            <p class="text-gray-600">시스템 설정 및 사용자 관리</p>
+                        </div>
+
+                        <!-- 회원 승인 관리 -->
+                        <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm mb-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-semibold text-gray-900">
+                                    <i class="fas fa-user-check mr-2"></i>회원 승인 관리
+                                </h3>
+                                <button onclick="refreshPendingUsers()" 
+                                        class="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition-colors">
+                                    <i class="fas fa-sync-alt mr-1"></i>새로고침
+                                </button>
+                            </div>
+                            
+                            <div id="pendingUsersContainer">
+                                <div class="text-center py-8 text-gray-500">
+                                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                                    <p>대기 중인 회원을 불러오는 중...</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 전체 사용자 관리 -->
+                        <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-semibold text-gray-900">
+                                    <i class="fas fa-users mr-2"></i>전체 사용자 관리
+                                </h3>
+                                <button onclick="refreshAllUsers()" 
+                                        class="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 transition-colors">
+                                    <i class="fas fa-sync-alt mr-1"></i>새로고침
+                                </button>
+                            </div>
+                            
+                            <div id="allUsersContainer">
+                                <div class="text-center py-8 text-gray-500">
+                                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                                    <p>사용자 목록을 불러오는 중...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <div id="evaluation" class="tab-content"></div>
                     <div id="selfEvaluation" class="tab-content"></div>
                     <div id="reports" class="tab-content"></div>
@@ -644,7 +796,217 @@ app.get('/dashboard', (c) => {
             }
 
             // 페이지 로드 시 인증 체크
-            document.addEventListener('DOMContentLoaded', checkAuth);
+            document.addEventListener('DOMContentLoaded', function() {
+                checkAuth();
+                // 설정 탭이 활성화되면 데이터 로드
+                if (document.getElementById('settings').classList.contains('active')) {
+                    loadSettingsData();
+                }
+            });
+
+            // 설정 관리 데이터 로드
+            function loadSettingsData() {
+                refreshPendingUsers();
+                refreshAllUsers();
+            }
+
+            // 대기 중인 회원 목록 새로고침
+            async function refreshPendingUsers() {
+                const container = document.getElementById('pendingUsersContainer');
+                container.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin mr-2"></i>불러오는 중...</div>';
+                
+                try {
+                    const response = await fetch('/api/users/pending');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        if (data.users.length === 0) {
+                            container.innerHTML = 
+                                '<div class="text-center py-8 text-gray-500">' +
+                                    '<i class="fas fa-check-circle text-green-500 text-3xl mb-2"></i>' +
+                                    '<p>승인 대기 중인 회원이 없습니다.</p>' +
+                                '</div>';
+                        } else {
+                            const usersHTML = data.users.map(user => 
+                                '<div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg mb-3">' +
+                                    '<div class="flex items-center space-x-4">' +
+                                        '<div class="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">' +
+                                            '<i class="fas fa-user text-yellow-600"></i>' +
+                                        '</div>' +
+                                        '<div>' +
+                                            '<h4 class="font-medium text-gray-900">' + user.name + '</h4>' +
+                                            '<p class="text-sm text-gray-600">' + user.email + '</p>' +
+                                            '<p class="text-xs text-gray-500">' +
+                                                (user.role === 'admin' ? '관리자' : '일반 사용자') + ' • ' + 
+                                                new Date(user.createdAt).toLocaleString('ko-KR') +
+                                            '</p>' +
+                                        '</div>' +
+                                    '</div>' +
+                                    '<div class="flex space-x-2">' +
+                                        '<button onclick="approveUser(\'' + user.email + '\', \'' + user.name + '\')" ' +
+                                                'class="px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors">' +
+                                            '<i class="fas fa-check mr-1"></i>승인' +
+                                        '</button>' +
+                                        '<button onclick="rejectUser(\'' + user.email + '\', \'' + user.name + '\')" ' +
+                                                'class="px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors">' +
+                                            '<i class="fas fa-times mr-1"></i>거부' +
+                                        '</button>' +
+                                    '</div>' +
+                                '</div>'
+                            ).join('');
+                            
+                            container.innerHTML = 
+                                '<div class="mb-4">' +
+                                    '<p class="text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg p-3">' +
+                                        '<i class="fas fa-exclamation-triangle mr-2"></i>' +
+                                        '총 <strong>' + data.users.length + '명</strong>의 회원이 승인을 기다리고 있습니다.' +
+                                    '</p>' +
+                                '</div>' +
+                                usersHTML;
+                        }
+                    } else {
+                        throw new Error(data.message || '데이터 로드 실패');
+                    }
+                } catch (error) {
+                    container.innerHTML = 
+                        '<div class="text-center py-8 text-red-500">' +
+                            '<i class="fas fa-exclamation-circle text-2xl mb-2"></i>' +
+                            '<p>데이터를 불러올 수 없습니다.</p>' +
+                            '<button onclick="refreshPendingUsers()" class="mt-2 text-sm text-blue-600 hover:text-blue-800">다시 시도</button>' +
+                        '</div>';
+                }
+            }
+
+            // 전체 사용자 목록 새로고침
+            async function refreshAllUsers() {
+                const container = document.getElementById('allUsersContainer');
+                container.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin mr-2"></i>불러오는 중...</div>';
+                
+                try {
+                    const response = await fetch('/api/users');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        const usersHTML = data.users.map(user => {
+                            const statusBadge = {
+                                'approved': '<span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">승인됨</span>',
+                                'pending': '<span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">대기중</span>',
+                                'rejected': '<span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">거부됨</span>'
+                            };
+                            
+                            const roleIcon = user.role === 'admin' ? 'fas fa-crown text-yellow-500' : 'fas fa-user text-gray-500';
+                            
+                            return '<div class="flex items-center justify-between p-3 border-b border-gray-100 last:border-b-0">' +
+                                    '<div class="flex items-center space-x-3">' +
+                                        '<i class="' + roleIcon + '"></i>' +
+                                        '<div>' +
+                                            '<h5 class="font-medium text-gray-900">' + user.name + '</h5>' +
+                                            '<p class="text-sm text-gray-600">' + user.email + '</p>' +
+                                        '</div>' +
+                                    '</div>' +
+                                    '<div class="text-right">' +
+                                        (statusBadge[user.status] || statusBadge['approved']) +
+                                        '<p class="text-xs text-gray-500 mt-1">' +
+                                            new Date(user.createdAt || Date.now()).toLocaleDateString('ko-KR') +
+                                        '</p>' +
+                                    '</div>' +
+                                '</div>';
+                        }).join('');
+                        
+                        container.innerHTML = 
+                            '<div class="mb-4 text-sm text-gray-600">' +
+                                '총 <strong>' + data.users.length + '명</strong>의 사용자가 등록되어 있습니다.' +
+                            '</div>' +
+                            '<div class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg">' +
+                                usersHTML +
+                            '</div>';
+                    } else {
+                        throw new Error(data.message || '데이터 로드 실패');
+                    }
+                } catch (error) {
+                    container.innerHTML = 
+                        '<div class="text-center py-8 text-red-500">' +
+                            '<i class="fas fa-exclamation-circle text-2xl mb-2"></i>' +
+                            '<p>사용자 목록을 불러올 수 없습니다.</p>' +
+                            '<button onclick="refreshAllUsers()" class="mt-2 text-sm text-blue-600 hover:text-blue-800">다시 시도</button>' +
+                        '</div>';
+                }
+            }
+
+            // 사용자 승인
+            async function approveUser(email, name) {
+                if (!confirm(name + '님의 계정을 승인하시겠습니까?')) return;
+                
+                const currentUser = JSON.parse(localStorage.getItem('user'));
+                
+                try {
+                    const response = await fetch('/api/users/approve', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            email: email,
+                            approverEmail: currentUser.email 
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('✅ ' + data.message);
+                        refreshPendingUsers();
+                        refreshAllUsers();
+                    } else {
+                        alert('❌ 승인 실패: ' + data.message);
+                    }
+                } catch (error) {
+                    alert('❌ 승인 중 오류가 발생했습니다.');
+                }
+            }
+
+            // 사용자 거부
+            async function rejectUser(email, name) {
+                const reason = prompt(name + '님의 계정 신청을 거부하는 이유를 입력하세요 (선택사항):', '');
+                if (reason === null) return; // 취소
+                
+                const currentUser = JSON.parse(localStorage.getItem('user'));
+                
+                try {
+                    const response = await fetch('/api/users/reject', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            email: email,
+                            reason: reason,
+                            approverEmail: currentUser.email 
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('✅ ' + data.message);
+                        refreshPendingUsers();
+                        refreshAllUsers();
+                    } else {
+                        alert('❌ 거부 처리 실패: ' + data.message);
+                    }
+                } catch (error) {
+                    alert('❌ 거부 처리 중 오류가 발생했습니다.');
+                }
+            }
+
+            // 탭 변경 감지하여 설정 탭일 때 데이터 로드
+            function showTab(tabName) {
+                // 기존 showTab 함수가 있다면 호출
+                if (window.originalShowTab) {
+                    window.originalShowTab(tabName);
+                }
+                
+                // 설정 탭이면 데이터 로드
+                if (tabName === 'settings') {
+                    setTimeout(loadSettingsData, 100);
+                }
+            }
         </script>
 
         <script src="/public/js/utils.js"></script>
