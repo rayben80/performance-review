@@ -13,7 +13,13 @@
     "deploy:prod": "npm run build && wrangler pages deploy dist --project-name webapp",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "clean-port": "fuser -k 3000/tcp 2>/dev/null || true",
-    "test": "curl http://localhost:3000"
+    "test": "curl http://localhost:3000",
+    "backup": "./scripts/auto-backup.sh",
+    "save": "./scripts/quick-save.sh",
+    "backup:full": "./scripts/auto-backup.sh",
+    "git:save": "git add . && git commit -m '🔄 작업 저장' && git push origin main",
+    "git:status": "git status --short",
+    "git:log": "git log --oneline -10"
   },
   "dependencies": {
     "@cloudflare/workers-types": "^4.20250826.0",
