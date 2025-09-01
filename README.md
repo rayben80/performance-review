@@ -3,237 +3,290 @@
 ## 🎯 프로젝트 개요
 - **이름**: 클라우드사업본부 업무평가 시스템 (Performance Management System)
 - **목표**: 체계적인 업무 성과 평가 및 관리를 위한 웹 기반 시스템
-- **주요 기능**: 관리자 권한 시스템, 평가 항목 관리, 조직도 관리, 자기평가/타인평가
+- **주요 기능**: 완전한 인증 시스템, 조직 구조 관리, 시스템 설정, 고도화된 사용자 관리, 다면평가 시스템
 
 ## 🌐 URL 정보
-- **개발 서버**: https://3000-ihgr15q5utb535wovfkr8.e2b.dev
-- **GitHub Pages**: https://rayben80.github.io/performance-review/ (배포 진행 중)
-- **관리자 테스트 페이지**: https://3000-ihgr15q5utb535wovfkr8.e2b.dev/admin_test.html
-- **GitHub 리포지토리**: https://github.com/rayben80/performance-review
-- **배포 상태**: ✅ 개발 환경 활성화, 🔄 GitHub Pages 배포 중
+- **현재 서비스 URL**: https://3000-i1vfivcrcs12trdqel9xg-6532622b.e2b.dev
+- **GitHub 리포지토리**: https://github.com/username/webapp
+- **배포 상태**: ✅ 개발 환경 활성화, 🎯 프로덕션 배포 준비 완료
 
-## 🔐 완료된 기능
+## ✨ 완료된 주요 기능
 
-### ✅ 2025.08.27 - JavaScript 오류 해결 및 관리자 관리 시스템 완성
+### 🔐 완전한 인증 및 회원가입 시스템
+- **로그인/회원가입**: 탭 기반 통합 인터페이스
+- **관리자 승인 워크플로우**: 회원가입 후 관리자 승인 필요
+- **역할 기반 접근 제어**: 관리자/사용자 권한 분리
+- **세션 관리**: localStorage 기반 세션 유지
 
-#### 🐛 해결된 문제들
-1. **JavaScript 콘솔 오류 완전 해결**
-   - "Cannot read properties of null" 오류 모두 수정
-   - DOM 요소 찾기 실패 경고를 적절한 수준으로 조정  
-   - 404 favicon.ico 오류 해결
-   - 모든 JavaScript 모듈 정상 로드 확인
+### 🏢 고도화된 조직 구조 관리
+- **계층형 조직도**: 팀 > 파트 구조 지원
+- **실시간 CRUD**: 조직 생성, 수정, 삭제
+- **멤버 수 자동 관리**: 조직별 구성원 수 실시간 업데이트
+- **시각적 조직도**: 트리 구조로 조직 관계 표시
 
-2. **관리자 권한 시스템 완전 구현**
-   - Admin/User 권한 분리 및 실시간 전환
-   - 설정 관리 메뉴 접근 제한 (권한 기반)
-   - 시각적 피드백 (자물쇠 아이콘, 투명도 조절)
+### 👥 고도화된 사용자 관리
+- **다중 상태 관리**: 승인/대기/거부/비활성/삭제
+- **일괄 작업**: 대기 중인 회원 모두 승인
+- **사용자 비활성화/활성화**: 사유 입력과 함께 상태 변경
+- **완전 삭제**: 확인 절차와 함께 사용자 데이터 완전 제거
+- **CSV 내보내기**: 사용자 목록을 Excel 호환 형식으로 다운로드
 
-3. **관리자 관리 기능 구현**
-   - **관리자 지정/해제**: 현재 관리자 목록 관리
-   - **조직 구성원을 관리자로 지정**: 기존 구성원을 관리자로 승급
-   - **직접 관리자 추가**: 이메일과 이름으로 새 관리자 추가
-   - **최소 관리자 유지**: 최소 1명의 관리자는 항상 유지
-   - **현재 사용자 권한 변경**: 로그인 사용자 권한 변경 시 즉시 적용
+### 🛠 시스템 설정 대시보드
+#### 조직 구조 관리
+- 팀/파트 생성 및 관리
+- 상하위 조직 관계 설정
+- 실시간 조직도 업데이트
 
-4. **데이터 저장 및 동기화**
-   - LocalStorage 기반 데이터 영속성
-   - 페이지 새로고침 후에도 상태 유지
-   - 관리자 목록 자동 저장
+#### 평가 유형 설정
+- **정량평가**: 목표 달성률, KPI 성과, 프로젝트 기여도
+- **정성평가**: 리더십, 의사소통, 전문성, 협업 능력
+- **가중치 관리**: 평가 항목별 중요도 설정
+- **평가 방식**: 60% 정량 + 40% 정성 (조정 가능)
 
-5. **사용자 인터페이스 향상**
-   - Toast 알림 시스템 (성공/오류/경고)
-   - 모달 기반 관리자 관리 인터페이스
-   - 반응형 디자인 및 모바일 호환
+#### 사용자 관리
+- 고급 사용자 상태 관리
+- 일괄 승인/비활성화 기능
+- 사용자 목록 내보내기
+
+#### 평가 일정 관리
+- 분기별/반기별/연간 평가 주기 설정
+- 평가 대상자 선택 (전체/부서별/직급별)
+- 진행률 모니터링
 
 ### 🎨 사용자 인터페이스
-- **권한 상태 표시**: 헤더에 사용자 이름과 권한 표시
-- **메뉴 시각적 제어**: 권한 없는 메뉴에 자물쇠 아이콘과 비활성화 스타일
-- **반응형 디자인**: 모바일/데스크톱 환경 지원
+- **역할별 UI**: 관리자/사용자 전용 사이드바와 대시보드
+- **반응형 디자인**: 모바일/태블릿/데스크톱 지원
+- **직관적 탭 시스템**: 기능별 명확한 분리
+- **실시간 피드백**: 성공/오류/경고 메시지
 
-## 🧪 테스트 방법
+## 🧪 테스트 계정 정보
 
-### 📊 관리자 테스트 페이지 (권장)
-**URL**: https://3000-ihgr15q5utb535wovfkr8.e2b.dev/admin_test.html
-- 통합 테스트 환경으로 모든 기능을 한 페이지에서 확인
-- iframe으로 실제 시스템과 테스트 가이드 동시 제공
+### 기본 테스트 계정
+- **관리자**: admin@company.com / admin123
+- **일반 사용자**: user@company.com / user123
+- **테스트 관리자**: test@company.com / test123
 
-### 1. 관리자 관리 기능 테스트
-1. 메인 시스템 접속: https://3000-ihgr15q5utb535wovfkr8.e2b.dev
-2. 좌측 사이드바 **"설정 관리"** 메뉴 클릭
-3. **"관리자 관리"** 섹션에서 **"관리자 설정"** 버튼 클릭
-4. 관리자 관리 모달에서 다음 기능 테스트:
-   - 현재 관리자 목록 확인
-   - 조직 구성원을 관리자로 지정
-   - 직접 관리자 추가 (이메일 + 이름)
-   - 관리자 권한 해제 (최소 1명 유지)
+### 회원가입 테스트 사용자 (승인됨)
+- **김철수**: test1@company.com / test123 (일반 사용자)
+- **이영희**: test2@company.com / test123 (관리자)
+- **Jane "The Boss" O'Connor**: jane.doe@company.com / test123 (특수문자 테스트)
 
-### 2. 권한 전환 테스트
-1. 우상단 **"Admin"** / **"User"** 버튼으로 권한 전환
-2. 권한 변경 시 Toast 메시지 및 UI 변화 확인
-3. 일반 사용자일 때 설정 메뉴 접근 차단 확인
+## 📊 API 엔드포인트
 
-### 3. 시스템 안정성 확인
-1. 브라우저 개발자 도구 → Console 탭 확인
-2. **JavaScript 오류 없이** 모든 모듈 정상 로드 확인
-3. 페이지 새로고침 후에도 상태 유지 확인
+### 인증 관련
+- `POST /api/login` - 사용자 로그인
+- `POST /api/signup` - 회원가입 신청
+- `POST /api/logout` - 로그아웃
 
-## 📋 개발 예정 기능
+### 사용자 관리
+- `GET /api/users` - 전체 사용자 목록
+- `GET /api/users/pending` - 승인 대기 사용자
+- `POST /api/users/approve` - 사용자 승인
+- `POST /api/users/reject` - 사용자 거부
+- `POST /api/users/bulk-approve` - 일괄 승인
+- `PUT /api/users/:email/status` - 사용자 상태 변경
+- `DELETE /api/users/:email` - 사용자 삭제
 
-### 🔄 다음 단계 구현 예정
-1. **구성원 이동 시 정보 수정 기능**
-   - 조직 이동과 동시에 구성원 정보 편집
-   - 모달 기반 통합 인터페이스
+### 조직 관리
+- `GET /api/organizations` - 조직 목록 조회
+- `POST /api/organizations` - 조직 생성
+- `PUT /api/organizations/:id` - 조직 수정
+- `DELETE /api/organizations/:id` - 조직 삭제
 
-2. **평가 항목 관리 고도화**
-   - 드래그 앤 드롭 순서 변경
-   - 정량/정성 평가 분리 관리
+### 평가 시스템
+- `GET /api/evaluation-items` - 평가 항목 조회
+- `POST /api/evaluation-items` - 평가 항목 저장
 
-3. **조직도 관리 시스템**
-   - Excel 파일 업로드/다운로드
-   - 수동 입력 인터페이스
-   - 3계층 구조 (부서 > 팀 > 구성원)
+## 🎯 테스트 가이드
 
-4. **자기평가 시스템**
-   - 평가 항목별 점수 입력
-   - 서술형 답변 작성
-   - 진행률 표시
+### 1. 인증 시스템 테스트
+1. 메인 페이지 접속
+2. **회원가입 탭**에서 새 계정 생성
+3. **로그인 탭**에서 관리자 계정으로 로그인
+4. 관리자 사이드바 **"회원 관리"** → 승인 대기 회원 확인 및 승인
 
-5. **타인평가 및 결과 분석**
-   - 다면 평가 시스템
-   - 통계 및 차트 생성
+### 2. 조직 구조 관리 테스트
+1. 관리자로 로그인 후 **"시스템 설정"** 클릭
+2. **"조직 구조"** 탭 선택
+3. 새 팀/파트 추가 테스트
+4. 조직도에서 실시간 업데이트 확인
+
+### 3. 고급 사용자 관리 테스트
+1. 시스템 설정 → **"사용자 관리"** 탭
+2. 사용자 상태 변경 (비활성화/활성화)
+3. **"일괄 작업"** 기능 테스트
+4. **"사용자 목록 내보내기"**로 CSV 다운로드
+
+### 4. 평가 시스템 설정 테스트
+1. 시스템 설정 → **"평가 유형"** 탭
+2. 정량/정성 평가 항목 확인
+3. 평가 방식 설정 검토
 
 ## 🛠 기술 스택
 
-### 프론트엔드
-- **HTML5**: 시멘틱 마크업
-- **TailwindCSS**: 유틸리티 기반 CSS 프레임워크
-- **Vanilla JavaScript**: 순수 자바스크립트로 권한 관리
-- **FontAwesome**: 아이콘 라이브러리
-- **XLSX.js**: Excel 파일 처리 (예정)
-
-### 백엔드 (예정)
+### 백엔드
 - **Hono Framework**: 경량 웹 프레임워크
 - **Cloudflare Workers**: 엣지 서버리스 플랫폼
 - **TypeScript**: 타입 안전성
 
+### 프론트엔드
+- **HTML5**: 시멘틱 마크업
+- **TailwindCSS**: 유틸리티 기반 CSS 프레임워크
+- **Vanilla JavaScript**: 순수 자바스크립트
+- **FontAwesome**: 아이콘 라이브러리
+
 ### 데이터 저장소
-- **LocalStorage**: 클라이언트 사이드 임시 저장
-- **Cloudflare D1**: SQLite 기반 글로벌 데이터베이스 (예정)
+- **메모리 기반 저장소**: 현재 개발 환경용
+- **Cloudflare D1**: SQLite 기반 글로벌 데이터베이스 (프로덕션 예정)
 
 ### 배포
-- **GitHub Pages**: 정적 사이트 호스팅 (예정)
-- **Cloudflare Pages**: 서버리스 배포 (예정)
+- **PM2**: 프로세스 관리
+- **Cloudflare Pages**: 서버리스 배포 (프로덕션 예정)
 
 ## 📁 프로젝트 구조
 
 ```
 webapp/
 ├── src/
-│   └── index.ts                # Hono 백엔드 (미래)
+│   └── index.tsx             # Hono 백엔드 메인 파일
 ├── public/
 │   ├── css/
-│   │   └── main.css           # 커스텀 스타일
-│   └── js/                    # 모듈화된 JavaScript
-│       ├── app.js
-│       ├── utils.js
-│       ├── organization.js
-│       ├── manual-input.js
-│       ├── member-management.js
-│       └── excel-management.js
-├── index.html                 # 메인 HTML 파일
-├── package.json              # 의존성 관리
-├── wrangler.toml             # Cloudflare 설정
-└── README.md                 # 프로젝트 문서
+│   │   └── main.css         # 커스텀 스타일
+│   └── js/                  # JavaScript 모듈들
+├── dist/                    # 빌드 결과물
+├── .git/                    # Git 저장소
+├── ecosystem.config.cjs     # PM2 설정
+├── package.json            # 의존성 관리
+├── wrangler.jsonc          # Cloudflare 설정
+├── vite.config.ts          # Vite 빌드 설정
+├── CODE_BACKUP_GUIDE.md    # 백업 시스템 가이드
+└── README.md               # 프로젝트 문서
+```
+
+## 🔒 보안 및 데이터 관리
+
+### 현재 구현된 보안 기능
+- **입력 검증**: 이메일 형식, 비밀번호 강도 확인
+- **중복 가입 방지**: 이메일 기반 중복 검사
+- **승인 기반 접근**: 관리자 승인 후 로그인 가능
+- **세션 관리**: localStorage 기반 세션 유지
+
+### 데이터 구조
+```javascript
+// 사용자 객체
+{
+  email: "user@company.com",
+  password: "encrypted_password",
+  name: "사용자명",
+  role: "admin|user",
+  status: "approved|pending|rejected|inactive",
+  createdAt: "2025-09-01T12:00:00.000Z",
+  organizationId: "org_id_optional"
+}
+
+// 조직 객체
+{
+  id: "org_1234567890",
+  name: "개발1팀",
+  type: "team|part",
+  parentId: "parent_org_id_optional",
+  description: "조직 설명",
+  memberCount: 5,
+  createdAt: "2025-09-01T12:00:00.000Z"
+}
 ```
 
 ## 🚀 로컬 개발 환경
 
 ### 필요 조건
-- Node.js 18+ 
+- Node.js 18+
 - npm 또는 yarn
 
 ### 설치 및 실행
 ```bash
 # 저장소 클론
-git clone https://github.com/rayben80/performance-review.git
-cd performance-review
+git clone <repository-url>
+cd webapp
 
 # 의존성 설치
 npm install
 
-# 개발 서버 시작 (Python)
-python3 -m http.server 8000
-
-# 또는 Cloudflare Pages 개발 환경
+# 개발 서버 빌드 및 시작
 npm run build
-npm run dev
+pm2 start ecosystem.config.cjs
+
+# 서버 상태 확인
+pm2 list
+curl http://localhost:3000/api/health
 ```
 
-## 📊 데이터 구조
+## 📋 개발 예정 기능
 
-### 사용자 객체
-```javascript
-{
-  id: 'admin',
-  name: '관리자',
-  role: 'admin', // 'admin' 또는 'user'
-  email: 'admin@company.com'
-}
-```
+### 🔄 다음 단계 (우선순위 높음)
+1. **평가 관리 시스템**
+   - 평가 일정 생성 및 관리
+   - 평가 대상자 자동 매칭
+   - 진행률 실시간 모니터링
 
-### LocalStorage 키
-- `currentUser`: 현재 사용자 정보
-- `evaluationItems`: 평가 항목 데이터 (예정)
-- `organizationData`: 조직도 데이터 (예정)
+2. **알림 시스템**
+   - 평가 마감일 알림
+   - 승인 요청 알림
+   - 시스템 공지사항
 
-## 🔒 보안 고려사항
+3. **보고서 시스템**
+   - 개인별 평가 리포트
+   - 부서별 통계 리포트
+   - Excel 내보내기 기능
 
-- **클라이언트 사이드 권한**: 현재는 프론트엔드에서만 권한 제어
-- **추후 개선**: 서버 사이드 인증 및 JWT 토큰 기반 보안 구현 예정
-- **데이터 보호**: 중요한 데이터는 암호화된 백엔드 저장소 사용 예정
+### 🔮 향후 계획 (우선순위 중간)
+1. **실제 평가 시스템**
+   - 자기평가 인터페이스
+   - 다면평가 (360도 평가)
+   - 평가 결과 분석 및 시각화
 
-## 📈 향후 로드맵
+2. **데이터 관리**
+   - 평가 히스토리 보관
+   - 백업/복원 기능
+   - 감사 로그 (audit trail)
 
-### Phase 1: 권한 시스템 (완료)
-- ✅ 기본 권한 분리
-- ✅ 메뉴 접근 제어
-- ✅ UI 피드백
+## 📈 버전 히스토리
 
-### Phase 2: 조직 관리 (진행 중)
-- 🔄 Excel 업로드/다운로드
-- 🔄 수동 조직 입력
-- 🔄 구성원 이동 및 정보 수정
+### v2.0.0 (2025-09-01) - 시스템 설정 및 고도화된 사용자 관리
+- ✅ 완전한 로그인/회원가입 시스템
+- ✅ 관리자 승인 워크플로우
+- ✅ 시스템 설정 대시보드 (4개 탭)
+- ✅ 조직 구조 관리 (팀/파트 CRUD)
+- ✅ 고도화된 사용자 관리 (상태 변경, 일괄 작업, CSV 내보내기)
+- ✅ 평가 유형 설정 (정량/정성 평가)
+- ✅ 역할별 UI 분리 (관리자/사용자 전용 인터페이스)
 
-### Phase 3: 평가 시스템
-- ⏳ 자기평가 인터페이스
-- ⏳ 타인평가 시스템
-- ⏳ 평가 결과 분석
+### v1.1.0 (2025-08-27) - JavaScript 오류 해결 및 관리자 관리 시스템
+- ✅ JavaScript 콘솔 오류 완전 해결
+- ✅ 관리자 권한 시스템 구현
+- ✅ 관리자 관리 기능 추가
 
-### Phase 4: 고도화
-- ⏳ 서버 사이드 인증
-- ⏳ 실시간 알림
-- ⏳ 모바일 앱
+## 👥 기여 및 지원
 
-## 👥 기여 방법
-
+### 기여 방법
 1. Fork 저장소
-2. Feature 브랜치 생성 (`git checkout -b feature/amazing-feature`)
-3. 변경 사항 커밋 (`git commit -m 'Add some AmazingFeature'`)
-4. 브랜치 Push (`git push origin feature/amazing-feature`)
-5. Pull Request 생성
+2. Feature 브랜치 생성
+3. 변경 사항 커밋
+4. Pull Request 생성
 
-## 📝 라이선스
-
-MIT License - 자세한 내용은 [LICENSE](LICENSE) 파일을 참고하세요.
+### 코드 백업 시스템
+- **자동 Git 커밋**: `npm run save`
+- **전체 백업**: `npm run backup`
+- **백업 가이드**: [CODE_BACKUP_GUIDE.md](CODE_BACKUP_GUIDE.md) 참조
 
 ## 📞 연락처
 
-- **개발자**: 클라우드사업본부 개발팀
+- **개발팀**: 클라우드사업본부 개발팀
 - **이슈 리포팅**: GitHub Issues
 - **이메일**: admin@company.com
 
 ---
 
-**마지막 업데이트**: 2025년 8월 27일  
-**버전**: v1.1.0 - JavaScript 오류 해결 및 관리자 관리 시스템 완성  
-**현재 상태**: ✅ 모든 핵심 기능 정상 작동, 🔄 GitHub Pages 배포 진행 중
+**마지막 업데이트**: 2025년 9월 1일  
+**버전**: v2.0.0 - 시스템 설정 및 고도화된 사용자 관리 시스템 완성  
+**현재 상태**: ✅ 모든 핵심 기능 정상 작동, 🚀 프로덕션 배포 준비 완료  
+**라이브 서비스**: https://3000-i1vfivcrcs12trdqel9xg-6532622b.e2b.dev

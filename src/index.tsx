@@ -225,6 +225,300 @@ app.post('/api/logout', (c) => {
   return c.json({ success: true, message: '로그아웃 되었습니다.' })
 })
 
+// 조직 구조 관련 API
+// 조직 목록 조회
+app.get('/api/organizations', async (c) => {
+  const organizations = JSON.parse(globalThis.organizationDatabase || '{}')
+  const orgList = Object.values(organizations).map(org => ({
+    id: org.id,
+    name: org.name,
+    type: org.type,
+    parentId: org.parentId,
+    description: org.description,
+    memberCount: org.memberCount || 0,
+    createdAt: org.createdAt
+  }))
+  
+  return c.json({ success: true, organizations: orgList })
+})
+
+// 조직 생성
+app.post('/api/organizations', async (c) => {
+  const { name, type, parentId, description } = await c.req.json()
+  
+  if (!name || !type) {
+    return c.json({ success: false, message: '조직명과 타입은 필수입니다.' }, 400)
+  }
+  
+  const organizations = JSON.parse(globalThis.organizationDatabase || '{}')
+  const orgId = 'org_' + Date.now()
+  
+  const newOrg = {
+    id: orgId,
+    name: name.trim(),
+    type: type, // 'team' 또는 'part'
+    parentId: parentId || null,
+    description: description || '',
+    memberCount: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }
+  
+  organizations[orgId] = newOrg
+  globalThis.organizationDatabase = JSON.stringify(organizations)
+  
+  return c.json({ 
+    success: true, 
+    message: '조직이 성공적으로 생성되었습니다.',
+    organization: newOrg
+  })
+})
+
+// 조직 수정
+app.put('/api/organizations/:id', async (c) => {
+  const orgId = c.req.param('id')
+  const { name, type, parentId, description } = await c.req.json()
+  
+  const organizations = JSON.parse(globalThis.organizationDatabase || '{}')
+  
+  if (!organizations[orgId]) {
+    return c.json({ success: false, message: '조직을 찾을 수 없습니다.' }, 404)
+  }
+  
+  organizations[orgId] = {
+    ...organizations[orgId],
+    name: name || organizations[orgId].name,
+    type: type || organizations[orgId].type,
+    parentId: parentId !== undefined ? parentId : organizations[orgId].parentId,
+    description: description !== undefined ? description : organizations[orgId].description,
+    updatedAt: new Date().toISOString()
+  }
+  
+  globalThis.organizationDatabase = JSON.stringify(organizations)
+  
+  return c.json({ 
+    success: true, 
+    message: '조직 정보가 수정되었습니다.',
+    organization: organizations[orgId]
+  })
+})
+
+// 조직 삭제
+app.delete('/api/organizations/:id', async (c) => {
+  const orgId = c.req.param('id')
+  const organizations = JSON.parse(globalThis.organizationDatabase || '{}')
+  
+  if (!organizations[orgId]) {
+    return c.json({ success: false, message: '조직을 찾을 수 없습니다.' }, 404)
+  }
+  
+  // 하위 조직이 있는지 확인
+  const hasChildren = Object.values(organizations).some(org => org.parentId === orgId)
+  if (hasChildren) {
+    return c.json({ success: false, message: '하위 조직이 있어 삭제할 수 없습니다.' }, 400)
+  }
+  
+  delete organizations[orgId]
+  globalThis.organizationDatabase = JSON.stringify(organizations)
+  
+  return c.json({ 
+    success: true, 
+    message: '조직이 삭제되었습니다.'
+  })
+})
+
+// 평가 항목 관련 API
+// 평가 항목 조회 (정량/정성)
+app.get('/api/evaluation-items', async (c) => {
+  const evaluationItems = JSON.parse(globalThis.evaluationItemsDatabase || '{}')
+  
+  const quantitative = evaluationItems.quantitative || [
+    { id: 'q1', name: '목표 달성률', description: '개인 목표 대비 달성 비율 (%)', weight: 40, type: 'percentage' },
+    { id: 'q2', name: 'KPI 성과', description: '핵심성과지표 달성도 (1-5점)', weight: 35, type: 'rating' },
+    { id: 'q3', name: '프로젝트 기여도', description: '프로젝트 성공도 및 기여 수준', weight: 25, type: 'rating' }
+  ]
+  
+  const qualitative = evaluationItems.qualitative || [
+    { id: 'ql1', name: '리더십', description: '팀을 이끄는 능력과 영향력', scale: '1-5점' },
+    { id: 'ql2', name: '의사소통', description: '명확하고 효과적인 커뮤니케이션', scale: '1-5점' },
+    { id: 'ql3', name: '전문성', description: '직무 관련 지식과 기술 수준', scale: '1-5점' },
+    { id: 'ql4', name: '협업 능력', description: '팀워크와 상호 협력 정도', scale: '1-5점' }
+  ]
+  
+  return c.json({ 
+    success: true, 
+    evaluationItems: {
+      quantitative,
+      qualitative
+    }
+  })
+})
+
+// 평가 항목 저장
+app.post('/api/evaluation-items', async (c) => {
+  const { quantitative, qualitative } = await c.req.json()
+  
+  const evaluationItems = {
+    quantitative: quantitative || [],
+    qualitative: qualitative || [],
+    updatedAt: new Date().toISOString()
+  }
+  
+  globalThis.evaluationItemsDatabase = JSON.stringify(evaluationItems)
+  
+  return c.json({ 
+    success: true, 
+    message: '평가 항목이 저장되었습니다.',
+    evaluationItems
+  })
+})
+
+// 고도화된 사용자 관리 API
+
+// 사용자 상태 변경 (비활성화/활성화)
+app.put('/api/users/:email/status', async (c) => {
+  const email = c.req.param('email')
+  const { status, reason } = await c.req.json()
+  
+  const users = JSON.parse(globalThis.userDatabase || '{}')
+  
+  if (!users[email]) {
+    return c.json({ success: false, message: '사용자를 찾을 수 없습니다.' }, 404)
+  }
+  
+  const validStatuses = ['active', 'inactive', 'approved', 'pending', 'rejected']
+  if (!validStatuses.includes(status)) {
+    return c.json({ success: false, message: '유효하지 않은 상태입니다.' }, 400)
+  }
+  
+  users[email].status = status
+  users[email].statusReason = reason || ''
+  users[email].statusChangedAt = new Date().toISOString()
+  
+  globalThis.userDatabase = JSON.stringify(users)
+  
+  const statusMessages = {
+    'active': '활성화',
+    'inactive': '비활성화', 
+    'approved': '승인',
+    'pending': '대기',
+    'rejected': '거부'
+  }
+  
+  return c.json({ 
+    success: true, 
+    message: `사용자가 ${statusMessages[status]}되었습니다.`,
+    user: {
+      email: users[email].email,
+      name: users[email].name,
+      status: users[email].status
+    }
+  })
+})
+
+// 사용자 조직 배치
+app.put('/api/users/:email/organization', async (c) => {
+  const email = c.req.param('email')
+  const { organizationId } = await c.req.json()
+  
+  const users = JSON.parse(globalThis.userDatabase || '{}')
+  const organizations = JSON.parse(globalThis.organizationDatabase || '{}')
+  
+  if (!users[email]) {
+    return c.json({ success: false, message: '사용자를 찾을 수 없습니다.' }, 404)
+  }
+  
+  if (organizationId && !organizations[organizationId]) {
+    return c.json({ success: false, message: '조직을 찾을 수 없습니다.' }, 404)
+  }
+  
+  // 기존 조직에서 멤버 수 감소
+  if (users[email].organizationId) {
+    const oldOrg = organizations[users[email].organizationId]
+    if (oldOrg) {
+      oldOrg.memberCount = Math.max(0, (oldOrg.memberCount || 0) - 1)
+    }
+  }
+  
+  // 새 조직에 멤버 수 증가
+  if (organizationId) {
+    organizations[organizationId].memberCount = (organizations[organizationId].memberCount || 0) + 1
+  }
+  
+  users[email].organizationId = organizationId
+  users[email].organizationAssignedAt = new Date().toISOString()
+  
+  globalThis.userDatabase = JSON.stringify(users)
+  globalThis.organizationDatabase = JSON.stringify(organizations)
+  
+  return c.json({ 
+    success: true, 
+    message: '사용자 조직이 변경되었습니다.',
+    user: {
+      email: users[email].email,
+      name: users[email].name,
+      organizationId: users[email].organizationId
+    }
+  })
+})
+
+// 사용자 완전 삭제
+app.delete('/api/users/:email', async (c) => {
+  const email = c.req.param('email')
+  const users = JSON.parse(globalThis.userDatabase || '{}')
+  
+  if (!users[email]) {
+    return c.json({ success: false, message: '사용자를 찾을 수 없습니다.' }, 404)
+  }
+  
+  // 조직에서 멤버 수 감소
+  if (users[email].organizationId) {
+    const organizations = JSON.parse(globalThis.organizationDatabase || '{}')
+    const org = organizations[users[email].organizationId]
+    if (org) {
+      org.memberCount = Math.max(0, (org.memberCount || 0) - 1)
+      globalThis.organizationDatabase = JSON.stringify(organizations)
+    }
+  }
+  
+  delete users[email]
+  globalThis.userDatabase = JSON.stringify(users)
+  
+  return c.json({ 
+    success: true, 
+    message: '사용자가 완전히 삭제되었습니다.'
+  })
+})
+
+// 일괄 사용자 승인
+app.post('/api/users/bulk-approve', async (c) => {
+  const { approverEmail } = await c.req.json()
+  
+  if (!approverEmail) {
+    return c.json({ success: false, message: '승인자 정보가 필요합니다.' }, 400)
+  }
+  
+  const users = JSON.parse(globalThis.userDatabase || '{}')
+  let approvedCount = 0
+  
+  for (const email in users) {
+    if (users[email].status === 'pending') {
+      users[email].status = 'approved'
+      users[email].approvedAt = new Date().toISOString()
+      users[email].approvedBy = approverEmail
+      approvedCount++
+    }
+  }
+  
+  globalThis.userDatabase = JSON.stringify(users)
+  
+  return c.json({ 
+    success: true, 
+    message: `총 ${approvedCount}명의 사용자가 승인되었습니다.`,
+    approvedCount
+  })
+})
+
 // 로그인 페이지 (메인 경로)
 app.get('/', (c) => {
   return c.html(`
@@ -918,11 +1212,421 @@ app.get('/dashboard', (c) => {
 
                     <div id="systemSettings" class="tab-content">
                         <div class="mb-6">
-                            <h2 class="text-2xl font-bold text-gray-900 mb-2">시스템 설정</h2>
-                            <p class="text-gray-600">시스템 전반적인 설정을 관리합니다</p>
+                            <h2 class="text-2xl font-bold text-gray-900 mb-2">
+                                <i class="fas fa-cog text-gray-600 mr-2"></i>시스템 설정
+                            </h2>
+                            <p class="text-gray-600">평가 시스템의 전반적인 설정을 관리합니다</p>
                         </div>
-                        <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                            <p class="text-gray-600">시스템 설정 기능이 곧 제공될 예정입니다.</p>
+
+                        <!-- 설정 네비게이션 -->
+                        <div class="mb-6">
+                            <div class="border-b border-gray-200">
+                                <nav class="-mb-px flex space-x-8">
+                                    <button onclick="showSettingsTab('organization')" 
+                                            class="settings-tab-btn py-2 px-1 border-b-2 border-blue-500 font-medium text-sm text-blue-600" 
+                                            id="orgTab">
+                                        <i class="fas fa-sitemap mr-2"></i>조직 구조
+                                    </button>
+                                    <button onclick="showSettingsTab('evaluation')" 
+                                            class="settings-tab-btn py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300" 
+                                            id="evalTab">
+                                        <i class="fas fa-tasks mr-2"></i>평가 유형
+                                    </button>
+                                    <button onclick="showSettingsTab('users')" 
+                                            class="settings-tab-btn py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300" 
+                                            id="usersTab">
+                                        <i class="fas fa-users-cog mr-2"></i>사용자 관리
+                                    </button>
+                                    <button onclick="showSettingsTab('schedule')" 
+                                            class="settings-tab-btn py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300" 
+                                            id="scheduleTab">
+                                        <i class="fas fa-calendar-alt mr-2"></i>평가 일정
+                                    </button>
+                                </nav>
+                            </div>
+                        </div>
+
+                        <!-- 조직 구조 설정 -->
+                        <div id="organizationSettings" class="settings-content">
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <!-- 조직도 표시 -->
+                                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <h3 class="text-lg font-semibold text-gray-900">
+                                            <i class="fas fa-sitemap text-blue-500 mr-2"></i>현재 조직 구조
+                                        </h3>
+                                        <button onclick="refreshOrganization()" 
+                                                class="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition-colors">
+                                            <i class="fas fa-sync-alt mr-1"></i>새로고침
+                                        </button>
+                                    </div>
+                                    
+                                    <div id="organizationTree" class="space-y-2">
+                                        <div class="p-4 bg-gray-50 rounded-lg">
+                                            <div class="flex items-center">
+                                                <i class="fas fa-building text-gray-600 mr-2"></i>
+                                                <span class="font-medium">클라우드사업본부</span>
+                                            </div>
+                                            <div class="ml-6 mt-2 space-y-1">
+                                                <div class="flex items-center text-sm text-gray-600">
+                                                    <i class="fas fa-users mr-2"></i>
+                                                    <span>개발1팀 (5명)</span>
+                                                    <button class="ml-2 text-blue-600 hover:text-blue-800">
+                                                        <i class="fas fa-edit text-xs"></i>
+                                                    </button>
+                                                </div>
+                                                <div class="flex items-center text-sm text-gray-600">
+                                                    <i class="fas fa-users mr-2"></i>
+                                                    <span>개발2팀 (3명)</span>
+                                                    <button class="ml-2 text-blue-600 hover:text-blue-800">
+                                                        <i class="fas fa-edit text-xs"></i>
+                                                    </button>
+                                                </div>
+                                                <div class="flex items-center text-sm text-gray-600">
+                                                    <i class="fas fa-users mr-2"></i>
+                                                    <span>인프라팀 (2명)</span>
+                                                    <button class="ml-2 text-blue-600 hover:text-blue-800">
+                                                        <i class="fas fa-edit text-xs"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 팀/파트 관리 -->
+                                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                    <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                                        <i class="fas fa-plus text-green-500 mr-2"></i>팀/파트 관리
+                                    </h3>
+                                    
+                                    <form id="organizationForm" class="space-y-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">구분</label>
+                                            <select id="orgType" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                                <option value="team">팀</option>
+                                                <option value="part">파트</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">이름</label>
+                                            <input type="text" id="orgName" placeholder="예: 개발3팀" 
+                                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                        </div>
+                                        
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">상위 조직</label>
+                                            <select id="parentOrg" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                                <option value="">클라우드사업본부 (최상위)</option>
+                                                <option value="team1">개발1팀</option>
+                                                <option value="team2">개발2팀</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">설명</label>
+                                            <textarea id="orgDescription" rows="3" placeholder="조직의 역할과 업무를 설명해주세요" 
+                                                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+                                        </div>
+                                        
+                                        <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors">
+                                            <i class="fas fa-plus mr-2"></i>조직 추가
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 평가 유형 설정 -->
+                        <div id="evaluationSettings" class="settings-content hidden">
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <!-- 정량평가 설정 -->
+                                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                    <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                                        <i class="fas fa-chart-bar text-blue-500 mr-2"></i>정량평가 항목
+                                    </h3>
+                                    
+                                    <div class="space-y-3 mb-4">
+                                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                            <div>
+                                                <span class="font-medium">목표 달성률</span>
+                                                <p class="text-sm text-gray-600">개인 목표 대비 달성 비율 (%)</p>
+                                            </div>
+                                            <div class="flex items-center space-x-2">
+                                                <span class="text-sm text-gray-500">가중치: 40%</span>
+                                                <button class="text-blue-600 hover:text-blue-800">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                            <div>
+                                                <span class="font-medium">KPI 성과</span>
+                                                <p class="text-sm text-gray-600">핵심성과지표 달성도 (1-5점)</p>
+                                            </div>
+                                            <div class="flex items-center space-x-2">
+                                                <span class="text-sm text-gray-500">가중치: 35%</span>
+                                                <button class="text-blue-600 hover:text-blue-800">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                            <div>
+                                                <span class="font-medium">프로젝트 기여도</span>
+                                                <p class="text-sm text-gray-600">프로젝트 성공도 및 기여 수준</p>
+                                            </div>
+                                            <div class="flex items-center space-x-2">
+                                                <span class="text-sm text-gray-500">가중치: 25%</span>
+                                                <button class="text-blue-600 hover:text-blue-800">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <button class="w-full bg-blue-100 text-blue-700 py-2 rounded-lg font-medium hover:bg-blue-200 transition-colors">
+                                        <i class="fas fa-plus mr-2"></i>새 항목 추가
+                                    </button>
+                                </div>
+
+                                <!-- 정성평가 설정 -->
+                                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                    <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                                        <i class="fas fa-comments text-green-500 mr-2"></i>정성평가 항목
+                                    </h3>
+                                    
+                                    <div class="space-y-3 mb-4">
+                                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                            <div>
+                                                <span class="font-medium">리더십</span>
+                                                <p class="text-sm text-gray-600">팀을 이끄는 능력과 영향력</p>
+                                            </div>
+                                            <div class="flex items-center space-x-2">
+                                                <span class="text-sm text-gray-500">1-5점</span>
+                                                <button class="text-blue-600 hover:text-blue-800">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                            <div>
+                                                <span class="font-medium">의사소통</span>
+                                                <p class="text-sm text-gray-600">명확하고 효과적인 커뮤니케이션</p>
+                                            </div>
+                                            <div class="flex items-center space-x-2">
+                                                <span class="text-sm text-gray-500">1-5점</span>
+                                                <button class="text-blue-600 hover:text-blue-800">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                            <div>
+                                                <span class="font-medium">전문성</span>
+                                                <p class="text-sm text-gray-600">직무 관련 지식과 기술 수준</p>
+                                            </div>
+                                            <div class="flex items-center space-x-2">
+                                                <span class="text-sm text-gray-500">1-5점</span>
+                                                <button class="text-blue-600 hover:text-blue-800">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                            <div>
+                                                <span class="font-medium">협업 능력</span>
+                                                <p class="text-sm text-gray-600">팀워크와 상호 협력 정도</p>
+                                            </div>
+                                            <div class="flex items-center space-x-2">
+                                                <span class="text-sm text-gray-500">1-5점</span>
+                                                <button class="text-blue-600 hover:text-blue-800">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <button class="w-full bg-green-100 text-green-700 py-2 rounded-lg font-medium hover:bg-green-200 transition-colors">
+                                        <i class="fas fa-plus mr-2"></i>새 항목 추가
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 평가 방식 설정 -->
+                            <div class="mt-6 bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                                    <i class="fas fa-sliders-h text-purple-500 mr-2"></i>평가 방식 설정
+                                </h3>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">평가 비율</label>
+                                        <div class="space-y-2">
+                                            <div class="flex justify-between">
+                                                <span class="text-sm">정량평가</span>
+                                                <span class="text-sm font-semibold">60%</span>
+                                            </div>
+                                            <div class="flex justify-between">
+                                                <span class="text-sm">정성평가</span>
+                                                <span class="text-sm font-semibold">40%</span>
+                                            </div>
+                                            <button class="text-sm text-blue-600 hover:text-blue-800">비율 조정</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">평가 등급</label>
+                                        <div class="space-y-1 text-sm">
+                                            <div>S등급 (90-100점)</div>
+                                            <div>A등급 (80-89점)</div>
+                                            <div>B등급 (70-79점)</div>
+                                            <div>C등급 (60-69점)</div>
+                                            <div>D등급 (60점 미만)</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">평가 주기</label>
+                                        <select class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                            <option value="quarterly">분기별 (3개월)</option>
+                                            <option value="semiannual">반기별 (6개월)</option>
+                                            <option value="annual">연간 (12개월)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 고도화된 사용자 관리 -->
+                        <div id="usersSettings" class="settings-content hidden">
+                            <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                                    <i class="fas fa-users-cog text-indigo-500 mr-2"></i>고급 사용자 관리
+                                </h3>
+                                
+                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    <!-- 사용자 상태 관리 -->
+                                    <div>
+                                        <h4 class="font-medium text-gray-900 mb-3">사용자 상태 관리</h4>
+                                        <div id="userStatusManagement" class="space-y-3">
+                                            <div class="text-center py-4 text-gray-500">
+                                                <i class="fas fa-spinner fa-spin text-xl mb-2"></i>
+                                                <p>사용자 목록을 불러오는 중...</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 일괄 작업 -->
+                                    <div>
+                                        <h4 class="font-medium text-gray-900 mb-3">일괄 작업</h4>
+                                        <div class="space-y-3">
+                                            <button onclick="bulkApproveUsers()" class="w-full flex items-center justify-center px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors">
+                                                <i class="fas fa-check-double mr-2"></i>
+                                                대기 중인 회원 모두 승인
+                                            </button>
+                                            <button onclick="cleanupInactiveUsers()" class="w-full flex items-center justify-center px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors">
+                                                <i class="fas fa-user-slash mr-2"></i>
+                                                비활성 사용자 정리
+                                            </button>
+                                            <button onclick="exportUserList()" class="w-full flex items-center justify-center px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors">
+                                                <i class="fas fa-download mr-2"></i>
+                                                사용자 목록 내보내기
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 평가 일정 관리 -->
+                        <div id="scheduleSettings" class="settings-content hidden">
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <!-- 현재 평가 일정 -->
+                                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                    <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                                        <i class="fas fa-calendar-check text-green-500 mr-2"></i>현재 평가 일정
+                                    </h3>
+                                    
+                                    <div class="space-y-4">
+                                        <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                            <div class="flex justify-between items-start">
+                                                <div>
+                                                    <h4 class="font-medium text-blue-900">2024년 3분기 평가</h4>
+                                                    <p class="text-sm text-blue-700 mt-1">자기평가 및 다면평가</p>
+                                                </div>
+                                                <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">진행중</span>
+                                            </div>
+                                            <div class="mt-3 text-sm text-blue-600">
+                                                <div>시작일: 2024.09.01</div>
+                                                <div>마감일: 2024.09.30</div>
+                                                <div class="mt-2">
+                                                    <div class="w-full bg-blue-200 rounded-full h-2">
+                                                        <div class="bg-blue-600 h-2 rounded-full" style="width: 15%"></div>
+                                                    </div>
+                                                    <span class="text-xs">진행률: 15%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 새 평가 일정 생성 -->
+                                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                    <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                                        <i class="fas fa-plus text-purple-500 mr-2"></i>새 평가 일정 생성
+                                    </h3>
+                                    
+                                    <form class="space-y-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">평가명</label>
+                                            <input type="text" placeholder="예: 2024년 4분기 평가" 
+                                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                        </div>
+                                        
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">시작일</label>
+                                                <input type="date" 
+                                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">마감일</label>
+                                                <input type="date" 
+                                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                            </div>
+                                        </div>
+                                        
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">평가 대상</label>
+                                            <div class="space-y-2">
+                                                <label class="flex items-center">
+                                                    <input type="checkbox" class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50" checked>
+                                                    <span class="ml-2 text-sm">전체 구성원</span>
+                                                </label>
+                                                <label class="flex items-center">
+                                                    <input type="checkbox" class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                                                    <span class="ml-2 text-sm">개발1팀만</span>
+                                                </label>
+                                                <label class="flex items-center">
+                                                    <input type="checkbox" class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                                                    <span class="ml-2 text-sm">관리자급만</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        
+                                        <button type="submit" class="w-full bg-purple-600 text-white py-2 rounded-lg font-semibold hover:bg-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors">
+                                            <i class="fas fa-calendar-plus mr-2"></i>평가 일정 생성
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -1126,6 +1830,9 @@ app.get('/dashboard', (c) => {
                     const data = await response.json();
                     
                     if (data.success) {
+                        // 전역 사용자 목록 업데이트
+                        currentPendingUsers = data.users;
+                        
                         if (data.users.length === 0) {
                             container.innerHTML = 
                                 '<div class="text-center py-8 text-gray-500">' +
@@ -1133,7 +1840,7 @@ app.get('/dashboard', (c) => {
                                     '<p>승인 대기 중인 회원이 없습니다.</p>' +
                                 '</div>';
                         } else {
-                            const usersHTML = data.users.map(user => 
+                            const usersHTML = data.users.map((user, index) => 
                                 '<div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg mb-3">' +
                                     '<div class="flex items-center space-x-4">' +
                                         '<div class="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">' +
@@ -1149,11 +1856,11 @@ app.get('/dashboard', (c) => {
                                         '</div>' +
                                     '</div>' +
                                     '<div class="flex space-x-2">' +
-                                        '<button onclick="approveUser(\'' + user.email + '\', \'' + user.name + '\')" ' +
+                                        '<button onclick="approveUserById(' + index + ')" ' +
                                                 'class="px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors">' +
                                             '<i class="fas fa-check mr-1"></i>승인' +
                                         '</button>' +
-                                        '<button onclick="rejectUser(\'' + user.email + '\', \'' + user.name + '\')" ' +
+                                        '<button onclick="rejectUserById(' + index + ')" ' +
                                                 'class="px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors">' +
                                             '<i class="fas fa-times mr-1"></i>거부' +
                                         '</button>' +
@@ -1301,6 +2008,492 @@ app.get('/dashboard', (c) => {
                 }
             }
 
+            // 전역 사용자 목록 저장소
+            let currentPendingUsers = [];
+
+            // 사용자 승인 (ID 기반)
+            async function approveUserById(index) {
+                if (index >= 0 && index < currentPendingUsers.length) {
+                    const user = currentPendingUsers[index];
+                    await approveUser(user.email, user.name);
+                }
+            }
+
+            // 사용자 거부 (ID 기반)
+            async function rejectUserById(index) {
+                if (index >= 0 && index < currentPendingUsers.length) {
+                    const user = currentPendingUsers[index];
+                    await rejectUser(user.email, user.name);
+                }
+            }
+
+            // 시스템 설정 탭 전환 함수
+            function showSettingsTab(tabName) {
+                // 모든 설정 탭 숨기기
+                const settingsContents = document.querySelectorAll('.settings-content');
+                settingsContents.forEach(content => content.classList.add('hidden'));
+                
+                // 모든 설정 탭 버튼 비활성화
+                const settingsTabBtns = document.querySelectorAll('.settings-tab-btn');
+                settingsTabBtns.forEach(btn => {
+                    btn.className = 'settings-tab-btn py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300';
+                });
+                
+                // 선택된 탭 활성화
+                const targetTab = document.getElementById(tabName + 'Settings');
+                const targetBtn = document.getElementById(tabName.charAt(0).toLowerCase() + tabName.slice(1) + 'Tab');
+                
+                if (targetTab) targetTab.classList.remove('hidden');
+                if (targetBtn) {
+                    targetBtn.className = 'settings-tab-btn py-2 px-1 border-b-2 border-blue-500 font-medium text-sm text-blue-600';
+                }
+                
+                // 특정 탭 데이터 로드
+                switch(tabName) {
+                    case 'organization':
+                        refreshOrganization();
+                        break;
+                    case 'users':
+                        loadUserStatusManagement();
+                        break;
+                }
+            }
+            
+            // 조직 구조 새로고침
+            async function refreshOrganization() {
+                const container = document.getElementById('organizationTree');
+                if (!container) return;
+                
+                try {
+                    const response = await fetch('/api/organizations');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        const organizations = data.organizations;
+                        
+                        // 조직을 계층 구조로 정리
+                        const rootOrgs = organizations.filter(org => !org.parentId);
+                        const childOrgs = organizations.filter(org => org.parentId);
+                        
+                        let orgTreeHTML = '<div class="p-4 bg-gray-50 rounded-lg">' +
+                            '<div class="flex items-center justify-between">' +
+                                '<div class="flex items-center">' +
+                                    '<i class="fas fa-building text-gray-600 mr-2"></i>' +
+                                    '<span class="font-medium">클라우드사업본부</span>' +
+                                '</div>' +
+                                '<span class="text-sm text-gray-500">총 ' + organizations.length + '개 조직</span>' +
+                            '</div>';
+                        
+                        if (rootOrgs.length > 0 || childOrgs.length > 0) {
+                            orgTreeHTML += '<div class="ml-6 mt-3 space-y-2">';
+                            
+                            // 최상위 조직들 (팀들)
+                            rootOrgs.forEach(org => {
+                                const children = childOrgs.filter(child => child.parentId === org.id);
+                                orgTreeHTML += '<div class="space-y-1">' +
+                                    '<div class="flex items-center justify-between">' +
+                                        '<div class="flex items-center text-sm text-gray-700">' +
+                                            '<i class="fas fa-users mr-2"></i>' +
+                                            '<span>' + org.name + ' (' + org.memberCount + '명)</span>' +
+                                        '</div>' +
+                                        '<div class="flex space-x-1">' +
+                                            '<button onclick="editOrganization(\\''+org.id+'\\')" class="text-blue-600 hover:text-blue-800">' +
+                                                '<i class="fas fa-edit text-xs"></i>' +
+                                            '</button>' +
+                                            '<button onclick="deleteOrganization(\\''+org.id+'\\', \\''+org.name+'\\')" class="text-red-600 hover:text-red-800">' +
+                                                '<i class="fas fa-trash text-xs"></i>' +
+                                            '</button>' +
+                                        '</div>' +
+                                    '</div>';
+                                
+                                // 하위 조직들 (파트들)
+                                if (children.length > 0) {
+                                    orgTreeHTML += '<div class="ml-6 space-y-1">';
+                                    children.forEach(child => {
+                                        orgTreeHTML += '<div class="flex items-center justify-between text-sm text-gray-600">' +
+                                            '<div class="flex items-center">' +
+                                                '<i class="fas fa-users mr-2"></i>' +
+                                                '<span>' + child.name + ' (' + child.memberCount + '명)</span>' +
+                                            '</div>' +
+                                            '<div class="flex space-x-1">' +
+                                                '<button onclick="editOrganization(\\''+child.id+'\\')" class="text-blue-600 hover:text-blue-800">' +
+                                                    '<i class="fas fa-edit text-xs"></i>' +
+                                                '</button>' +
+                                                '<button onclick="deleteOrganization(\\''+child.id+'\\', \\''+child.name+'\\')" class="text-red-600 hover:text-red-800">' +
+                                                    '<i class="fas fa-trash text-xs"></i>' +
+                                                '</button>' +
+                                            '</div>' +
+                                        '</div>';
+                                    });
+                                    orgTreeHTML += '</div>';
+                                }
+                                orgTreeHTML += '</div>';
+                            });
+                            
+                            orgTreeHTML += '</div>';
+                        } else {
+                            orgTreeHTML += '<div class="ml-6 mt-3 text-sm text-gray-500">등록된 조직이 없습니다.</div>';
+                        }
+                        
+                        orgTreeHTML += '</div>';
+                        container.innerHTML = orgTreeHTML;
+                        
+                        // 상위 조직 선택 옵션도 업데이트
+                        updateParentOrgOptions(organizations);
+                        
+                    } else {
+                        container.innerHTML = '<div class="p-4 bg-red-50 text-red-700 rounded-lg">조직 데이터를 불러올 수 없습니다.</div>';
+                    }
+                } catch (error) {
+                    container.innerHTML = '<div class="p-4 bg-red-50 text-red-700 rounded-lg">조직 데이터 로드 실패</div>';
+                }
+            }
+            
+            // 상위 조직 옵션 업데이트
+            function updateParentOrgOptions(organizations) {
+                const parentSelect = document.getElementById('parentOrg');
+                if (!parentSelect) return;
+                
+                parentSelect.innerHTML = '<option value="">클라우드사업본부 (최상위)</option>';
+                
+                organizations.forEach(org => {
+                    if (org.type === 'team') { // 팀만 상위 조직으로 선택 가능
+                        const option = document.createElement('option');
+                        option.value = org.id;
+                        option.textContent = org.name;
+                        parentSelect.appendChild(option);
+                    }
+                });
+            }
+            
+            // 조직 폼 제출 처리
+            document.addEventListener('DOMContentLoaded', function() {
+                const orgForm = document.getElementById('organizationForm');
+                if (orgForm) {
+                    orgForm.addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        
+                        const formData = {
+                            name: document.getElementById('orgName').value.trim(),
+                            type: document.getElementById('orgType').value,
+                            parentId: document.getElementById('parentOrg').value || null,
+                            description: document.getElementById('orgDescription').value.trim()
+                        };
+                        
+                        if (!formData.name) {
+                            alert('조직명을 입력해주세요.');
+                            return;
+                        }
+                        
+                        try {
+                            const response = await fetch('/api/organizations', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(formData)
+                            });
+                            
+                            const result = await response.json();
+                            
+                            if (result.success) {
+                                alert('✅ ' + result.message);
+                                orgForm.reset();
+                                refreshOrganization(); // 조직도 새로고침
+                            } else {
+                                alert('❌ ' + result.message);
+                            }
+                        } catch (error) {
+                            alert('❌ 조직 생성 중 오류가 발생했습니다.');
+                        }
+                    });
+                }
+            });
+            
+            // 조직 편집
+            function editOrganization(orgId) {
+                alert('조직 편집 기능이 곧 구현됩니다. (ID: ' + orgId + ')');
+            }
+            
+            // 조직 삭제
+            async function deleteOrganization(orgId, orgName) {
+                if (!confirm('조직 "' + orgName + '"을(를) 삭제하시겠습니까?\\n\\n하위 조직이 있으면 삭제할 수 없습니다.')) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/api/organizations/' + orgId, {
+                        method: 'DELETE'
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        alert('✅ ' + result.message);
+                        refreshOrganization(); // 조직도 새로고침
+                    } else {
+                        alert('❌ ' + result.message);
+                    }
+                } catch (error) {
+                    alert('❌ 조직 삭제 중 오류가 발생했습니다.');
+                }
+            }
+            
+            // 사용자 상태 관리 로드
+            async function loadUserStatusManagement() {
+                const container = document.getElementById('userStatusManagement');
+                if (!container) return;
+                
+                container.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin mr-2"></i>불러오는 중...</div>';
+                
+                try {
+                    const response = await fetch('/api/users');
+                    const data = await response.json();
+                    
+                    if (data.success && data.users.length > 0) {
+                        // 전역 변수에 사용자 목록 저장
+                        currentAllUsers = data.users;
+                        const usersHTML = data.users.map((user, index) => {
+                            const statusColors = {
+                                'approved': 'bg-green-100 text-green-800',
+                                'pending': 'bg-yellow-100 text-yellow-800',
+                                'rejected': 'bg-red-100 text-red-800',
+                                'inactive': 'bg-gray-100 text-gray-800'
+                            };
+                            
+                            const statusText = {
+                                'approved': '활성',
+                                'pending': '대기',
+                                'rejected': '거부됨',
+                                'inactive': '비활성'
+                            };
+                            
+                            const currentStatus = user.status || 'approved';
+                            
+                            return '<div class="flex items-center justify-between p-3 border border-gray-200 rounded-lg">' +
+                                    '<div class="flex items-center space-x-3">' +
+                                        '<div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">' +
+                                            '<i class="fas fa-user text-gray-600 text-sm"></i>' +
+                                        '</div>' +
+                                        '<div>' +
+                                            '<div class="font-medium text-sm">' + user.name + '</div>' +
+                                            '<div class="text-xs text-gray-500">' + user.email + '</div>' +
+                                        '</div>' +
+                                    '</div>' +
+                                    '<div class="flex items-center space-x-2">' +
+                                        '<span class="px-2 py-1 rounded-full text-xs ' + statusColors[currentStatus] + '">' + 
+                                            statusText[currentStatus] + 
+                                        '</span>' +
+                                        '<div class="relative">' +
+                                            '<button onclick="toggleUserActions(' + index + ')" class="text-gray-400 hover:text-gray-600">' +
+                                                '<i class="fas fa-ellipsis-v"></i>' +
+                                            '</button>' +
+                                            '<div id="userActions' + index + '" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">' +
+                                                '<div class="py-1">' +
+                                                    (currentStatus === 'pending' ? 
+                                                        '<button onclick="approveUserById(' + index + ')" class="block w-full text-left px-4 py-2 text-sm text-green-700 hover:bg-green-50">' +
+                                                            '<i class="fas fa-check mr-2"></i>승인' +
+                                                        '</button>' +
+                                                        '<button onclick="rejectUserById(' + index + ')" class="block w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50">' +
+                                                            '<i class="fas fa-times mr-2"></i>거부' +
+                                                        '</button>' : '') +
+                                                    (currentStatus === 'approved' ? 
+                                                        '<button onclick="deactivateUser(' + index + ')" class="block w-full text-left px-4 py-2 text-sm text-yellow-700 hover:bg-yellow-50">' +
+                                                            '<i class="fas fa-user-slash mr-2"></i>비활성화' +
+                                                        '</button>' : '') +
+                                                    (currentStatus === 'inactive' ? 
+                                                        '<button onclick="activateUser(' + index + ')" class="block w-full text-left px-4 py-2 text-sm text-green-700 hover:bg-green-50">' +
+                                                            '<i class="fas fa-user-check mr-2"></i>활성화' +
+                                                        '</button>' : '') +
+                                                    '<button onclick="deleteUser(' + index + ')" class="block w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50">' +
+                                                        '<i class="fas fa-trash mr-2"></i>완전 삭제' +
+                                                    '</button>' +
+                                                '</div>' +
+                                            '</div>' +
+                                        '</div>' +
+                                    '</div>' +
+                                '</div>';
+                        }).join('');
+                        
+                        container.innerHTML = usersHTML;
+                    } else {
+                        container.innerHTML = '<div class="text-center py-8 text-gray-500">등록된 사용자가 없습니다.</div>';
+                    }
+                } catch (error) {
+                    container.innerHTML = '<div class="text-center py-8 text-red-500">데이터 로드 실패</div>';
+                }
+            }
+            
+            // 사용자 액션 토글
+            function toggleUserActions(index) {
+                const actionDiv = document.getElementById('userActions' + index);
+                if (actionDiv) {
+                    actionDiv.classList.toggle('hidden');
+                    
+                    // 다른 열린 액션들은 닫기
+                    const allActions = document.querySelectorAll('[id^="userActions"]');
+                    allActions.forEach((div, i) => {
+                        if (i !== index) div.classList.add('hidden');
+                    });
+                }
+            }
+            
+            // 현재 사용자 목록 (사용자 관리 탭용)
+            let currentAllUsers = [];
+            
+            // 사용자 비활성화
+            async function deactivateUser(index) {
+                if (index < 0 || index >= currentAllUsers.length) return;
+                
+                const user = currentAllUsers[index];
+                const reason = prompt(user.name + '님을 비활성화하는 이유를 입력하세요:', '');
+                if (reason === null) return;
+                
+                try {
+                    const response = await fetch('/api/users/' + encodeURIComponent(user.email) + '/status', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'inactive', reason: reason })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('✅ ' + data.message);
+                        loadUserStatusManagement(); // 목록 새로고침
+                    } else {
+                        alert('❌ ' + data.message);
+                    }
+                } catch (error) {
+                    alert('❌ 비활성화 처리 중 오류가 발생했습니다.');
+                }
+            }
+            
+            // 사용자 활성화  
+            async function activateUser(index) {
+                if (index < 0 || index >= currentAllUsers.length) return;
+                
+                const user = currentAllUsers[index];
+                if (!confirm(user.name + '님을 다시 활성화하시겠습니까?')) return;
+                
+                try {
+                    const response = await fetch('/api/users/' + encodeURIComponent(user.email) + '/status', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'approved' })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('✅ ' + data.message);
+                        loadUserStatusManagement(); // 목록 새로고침
+                    } else {
+                        alert('❌ ' + data.message);
+                    }
+                } catch (error) {
+                    alert('❌ 활성화 처리 중 오류가 발생했습니다.');
+                }
+            }
+            
+            // 사용자 완전 삭제
+            async function deleteUser(index) {
+                if (index < 0 || index >= currentAllUsers.length) return;
+                
+                const user = currentAllUsers[index];
+                if (!confirm('⚠️ 경고: ' + user.name + '님을 완전히 삭제하시겠습니까?\\n\\n이 작업은 되돌릴 수 없으며 다음 데이터가 모두 삭제됩니다:\\n- 사용자 계정 정보\\n- 평가 히스토리\\n- 관련 모든 데이터')) return;
+                
+                try {
+                    const response = await fetch('/api/users/' + encodeURIComponent(user.email), {
+                        method: 'DELETE'
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('✅ ' + data.message);
+                        loadUserStatusManagement(); // 목록 새로고침
+                        refreshAllUsers(); // 전체 사용자 목록도 새로고침
+                    } else {
+                        alert('❌ ' + data.message);
+                    }
+                } catch (error) {
+                    alert('❌ 삭제 처리 중 오류가 발생했습니다.');
+                }
+            }
+            
+            // 일괄 승인 처리
+            async function bulkApproveUsers() {
+                if (!confirm('대기 중인 모든 사용자를 승인하시겠습니까?')) return;
+                
+                const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                
+                try {
+                    const response = await fetch('/api/users/bulk-approve', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ approverEmail: currentUser.email })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('✅ ' + data.message);
+                        loadUserStatusManagement();
+                        refreshPendingUsers();
+                        refreshAllUsers();
+                    } else {
+                        alert('❌ ' + data.message);
+                    }
+                } catch (error) {
+                    alert('❌ 일괄 승인 처리 중 오류가 발생했습니다.');
+                }
+            }
+            
+            // 비활성 사용자 정리
+            function cleanupInactiveUsers() {
+                alert('📋 비활성 사용자 정리 기능이 곧 구현됩니다.\\n\\n- 90일 이상 미접속 사용자 자동 비활성화\\n- 비활성 상태 180일 이상 사용자 삭제 권장');
+            }
+            
+            // 사용자 목록 내보내기
+            function exportUserList() {
+                try {
+                    if (!currentAllUsers || currentAllUsers.length === 0) {
+                        alert('내보낼 사용자 데이터가 없습니다.');
+                        return;
+                    }
+                    
+                    // CSV 형식으로 데이터 변환
+                    const headers = ['이름', '이메일', '권한', '상태', '가입일', '조직'];
+                    const csvData = currentAllUsers.map(user => [
+                        user.name || '',
+                        user.email || '',
+                        user.role === 'admin' ? '관리자' : '일반사용자',
+                        user.status === 'approved' ? '활성' : 
+                        user.status === 'pending' ? '대기' : 
+                        user.status === 'inactive' ? '비활성' : '거부됨',
+                        user.createdAt ? new Date(user.createdAt).toLocaleDateString('ko-KR') : '',
+                        user.organizationId || '미배치'
+                    ]);
+                    
+                    const csvContent = [headers, ...csvData]
+                        .map(row => row.map(cell => '"' + cell + '"').join(','))
+                        .join('\\n');
+                    
+                    // BOM 추가 (한글 깨짐 방지)
+                    const bom = '\\uFEFF';
+                    const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+                    
+                    // 파일 다운로드
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = '사용자목록_' + new Date().toISOString().split('T')[0] + '.csv';
+                    link.click();
+                    
+                    alert('✅ 사용자 목록이 CSV 파일로 다운로드되었습니다.');
+                } catch (error) {
+                    alert('❌ 파일 내보내기 중 오류가 발생했습니다.');
+                }
+            }
+
             // 탭 변경 감지하여 설정 탭일 때 데이터 로드
             function showTab(tabName) {
                 // 기존 showTab 함수가 있다면 호출
@@ -1311,6 +2504,11 @@ app.get('/dashboard', (c) => {
                 // 설정 탭이면 데이터 로드
                 if (tabName === 'settings') {
                     setTimeout(loadSettingsData, 100);
+                }
+                
+                // 시스템 설정 탭이면 기본적으로 조직 설정 표시
+                if (tabName === 'systemSettings') {
+                    setTimeout(() => showSettingsTab('organization'), 100);
                 }
             }
         </script>
