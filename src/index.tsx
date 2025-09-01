@@ -20,25 +20,97 @@ app.get('/api/health', (c) => {
 app.post('/api/login', async (c) => {
   const { email, password } = await c.req.json()
   
-  // 간단한 로그인 검증 (추후 개선)
-  const validUsers = {
+  // 기본 테스트 계정들
+  const defaultUsers = {
     'admin@company.com': { password: 'admin123', role: 'admin', name: '관리자' },
     'user@company.com': { password: 'user123', role: 'user', name: '사용자' },
     'test@company.com': { password: 'test123', role: 'admin', name: '테스트 관리자' }
   }
   
-  if (validUsers[email] && validUsers[email].password === password) {
+  // 회원가입된 사용자들 가져오기
+  const registeredUsers = JSON.parse(globalThis.userDatabase || '{}')
+  
+  // 모든 사용자 통합 (기본 + 회원가입)
+  const allUsers = { ...defaultUsers, ...registeredUsers }
+  
+  if (allUsers[email] && allUsers[email].password === password) {
     return c.json({ 
       success: true, 
       user: {
         email,
-        name: validUsers[email].name,
-        role: validUsers[email].role
+        name: allUsers[email].name,
+        role: allUsers[email].role
       }
     })
   } else {
     return c.json({ success: false, message: '이메일 또는 비밀번호가 올바르지 않습니다.' }, 401)
   }
+})
+
+// 회원가입 API
+app.post('/api/signup', async (c) => {
+  const { email, password, confirmPassword, name, role } = await c.req.json()
+  
+  // 유효성 검사
+  if (!email || !password || !confirmPassword || !name) {
+    return c.json({ success: false, message: '모든 필드를 입력해주세요.' }, 400)
+  }
+  
+  if (password !== confirmPassword) {
+    return c.json({ success: false, message: '비밀번호가 일치하지 않습니다.' }, 400)
+  }
+  
+  if (password.length < 6) {
+    return c.json({ success: false, message: '비밀번호는 최소 6자 이상이어야 합니다.' }, 400)
+  }
+  
+  // 이메일 형식 검사
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(email)) {
+    return c.json({ success: false, message: '올바른 이메일 형식이 아닙니다.' }, 400)
+  }
+  
+  // 기존 사용자 확인 (localStorage 시뮬레이션)
+  const existingUsers = JSON.parse(globalThis.userDatabase || '{}')
+  
+  if (existingUsers[email]) {
+    return c.json({ success: false, message: '이미 등록된 이메일입니다.' }, 409)
+  }
+  
+  // 새 사용자 추가
+  const newUser = {
+    email,
+    password, // 실제 운영에서는 해시화해야 함
+    name,
+    role: role || 'user', // 기본값은 일반 사용자
+    createdAt: new Date().toISOString()
+  }
+  
+  existingUsers[email] = newUser
+  globalThis.userDatabase = JSON.stringify(existingUsers)
+  
+  return c.json({ 
+    success: true, 
+    message: '회원가입이 완료되었습니다.',
+    user: {
+      email: newUser.email,
+      name: newUser.name,
+      role: newUser.role
+    }
+  })
+})
+
+// 사용자 목록 조회 API (관리자용)
+app.get('/api/users', async (c) => {
+  const users = JSON.parse(globalThis.userDatabase || '{}')
+  const userList = Object.values(users).map(user => ({
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    createdAt: user.createdAt
+  }))
+  
+  return c.json({ success: true, users: userList })
 })
 
 // 로그아웃 API
@@ -60,10 +132,10 @@ app.get('/', (c) => {
     </head>
     <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center justify-center p-4">
         <div class="w-full max-w-md">
-            <!-- 로그인 카드 -->
-            <div class="bg-white rounded-xl shadow-2xl p-8 space-y-6">
+            <!-- 인증 카드 -->
+            <div class="bg-white rounded-xl shadow-2xl overflow-hidden">
                 <!-- 헤더 -->
-                <div class="text-center space-y-2">
+                <div class="text-center p-8 pb-4">
                     <div class="mx-auto w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-4">
                         <i class="fas fa-chart-line text-white text-2xl"></i>
                     </div>
@@ -71,46 +143,129 @@ app.get('/', (c) => {
                     <p class="text-gray-600">클라우드사업본부 Performance Management System</p>
                 </div>
 
-                <!-- 로그인 폼 -->
-                <form id="loginForm" class="space-y-4">
-                    <div>
-                        <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
-                            <i class="fas fa-envelope mr-2"></i>이메일
-                        </label>
-                        <input type="email" id="email" name="email" required 
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                               placeholder="이메일을 입력하세요">
-                    </div>
-
-                    <div>
-                        <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
-                            <i class="fas fa-lock mr-2"></i>비밀번호
-                        </label>
-                        <input type="password" id="password" name="password" required
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                               placeholder="비밀번호를 입력하세요">
-                    </div>
-
-                    <button type="submit" id="loginBtn" 
-                            class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                <!-- 탭 네비게이션 -->
+                <div class="flex border-b border-gray-200 px-8">
+                    <button onclick="switchTab('login')" id="loginTab" 
+                            class="flex-1 py-3 px-4 text-center font-medium text-blue-600 border-b-2 border-blue-600 transition-colors">
                         <i class="fas fa-sign-in-alt mr-2"></i>로그인
                     </button>
-                </form>
+                    <button onclick="switchTab('signup')" id="signupTab" 
+                            class="flex-1 py-3 px-4 text-center font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 transition-colors">
+                        <i class="fas fa-user-plus mr-2"></i>회원가입
+                    </button>
+                </div>
 
-                <!-- 테스트 계정 안내 -->
-                <div class="bg-gray-50 rounded-lg p-4">
-                    <p class="text-sm font-medium text-gray-700 mb-2">
-                        <i class="fas fa-info-circle mr-2"></i>테스트 계정
-                    </p>
-                    <div class="space-y-1 text-xs text-gray-600">
-                        <div><strong>관리자:</strong> admin@company.com / admin123</div>
-                        <div><strong>일반 사용자:</strong> user@company.com / user123</div>
-                        <div><strong>테스트:</strong> test@company.com / test123</div>
+                <!-- 로그인 폼 -->
+                <div id="loginContent" class="p-8 space-y-6">
+                    <form id="loginForm" class="space-y-4">
+                        <div>
+                            <label for="loginEmail" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-envelope mr-2"></i>이메일
+                            </label>
+                            <input type="email" id="loginEmail" name="email" required 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                   placeholder="이메일을 입력하세요">
+                        </div>
+
+                        <div>
+                            <label for="loginPassword" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-lock mr-2"></i>비밀번호
+                            </label>
+                            <input type="password" id="loginPassword" name="password" required
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                   placeholder="비밀번호를 입력하세요">
+                        </div>
+
+                        <button type="submit" id="loginBtn" 
+                                class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fas fa-sign-in-alt mr-2"></i>로그인
+                        </button>
+                    </form>
+
+                    <!-- 테스트 계정 안내 -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <p class="text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-info-circle mr-2"></i>테스트 계정
+                        </p>
+                        <div class="space-y-1 text-xs text-gray-600">
+                            <div><strong>관리자:</strong> admin@company.com / admin123</div>
+                            <div><strong>일반 사용자:</strong> user@company.com / user123</div>
+                            <div><strong>테스트:</strong> test@company.com / test123</div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- 에러/성공 메시지 -->
-                <div id="message" class="hidden p-3 rounded-lg text-sm"></div>
+                <!-- 회원가입 폼 -->
+                <div id="signupContent" class="hidden p-8 space-y-6">
+                    <form id="signupForm" class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="signupName" class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-user mr-2"></i>이름
+                                </label>
+                                <input type="text" id="signupName" name="name" required 
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                       placeholder="이름을 입력하세요">
+                            </div>
+                            
+                            <div>
+                                <label for="signupRole" class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-user-tag mr-2"></i>권한
+                                </label>
+                                <select id="signupRole" name="role" 
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
+                                    <option value="user">일반 사용자</option>
+                                    <option value="admin">관리자</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="signupEmail" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-envelope mr-2"></i>이메일
+                            </label>
+                            <input type="email" id="signupEmail" name="email" required 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                   placeholder="이메일을 입력하세요">
+                        </div>
+
+                        <div>
+                            <label for="signupPassword" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-lock mr-2"></i>비밀번호
+                            </label>
+                            <input type="password" id="signupPassword" name="password" required
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                   placeholder="비밀번호를 입력하세요 (최소 6자)">
+                        </div>
+
+                        <div>
+                            <label for="signupConfirmPassword" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-lock mr-2"></i>비밀번호 확인
+                            </label>
+                            <input type="password" id="signupConfirmPassword" name="confirmPassword" required
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                   placeholder="비밀번호를 다시 입력하세요">
+                        </div>
+
+                        <button type="submit" id="signupBtn" 
+                                class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fas fa-user-plus mr-2"></i>회원가입
+                        </button>
+                    </form>
+
+                    <!-- 회원가입 안내 -->
+                    <div class="bg-blue-50 rounded-lg p-4">
+                        <p class="text-sm text-blue-700">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            회원가입 후 즉시 로그인하여 시스템을 이용할 수 있습니다.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 공통 메시지 영역 -->
+                <div class="px-8 pb-8">
+                    <div id="message" class="hidden p-3 rounded-lg text-sm"></div>
+                </div>
             </div>
 
             <!-- 푸터 -->
@@ -120,65 +275,140 @@ app.get('/', (c) => {
         </div>
 
         <script>
+            // 탭 전환 함수
+            function switchTab(tab) {
+                const loginTab = document.getElementById('loginTab');
+                const signupTab = document.getElementById('signupTab');
+                const loginContent = document.getElementById('loginContent');
+                const signupContent = document.getElementById('signupContent');
+                const message = document.getElementById('message');
+                
+                // 메시지 숨기기
+                message.classList.add('hidden');
+                
+                if (tab === 'login') {
+                    loginTab.className = 'flex-1 py-3 px-4 text-center font-medium text-blue-600 border-b-2 border-blue-600 transition-colors';
+                    signupTab.className = 'flex-1 py-3 px-4 text-center font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 transition-colors';
+                    loginContent.classList.remove('hidden');
+                    signupContent.classList.add('hidden');
+                } else {
+                    signupTab.className = 'flex-1 py-3 px-4 text-center font-medium text-green-600 border-b-2 border-green-600 transition-colors';
+                    loginTab.className = 'flex-1 py-3 px-4 text-center font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 transition-colors';
+                    signupContent.classList.remove('hidden');
+                    loginContent.classList.add('hidden');
+                }
+            }
+
+            // 메시지 표시 함수
+            function showMessage(text, type = 'error') {
+                const message = document.getElementById('message');
+                const colors = {
+                    success: 'bg-green-50 border border-green-200 text-green-700',
+                    error: 'bg-red-50 border border-red-200 text-red-700',
+                    info: 'bg-blue-50 border border-blue-200 text-blue-700'
+                };
+                const icons = {
+                    success: 'fas fa-check-circle',
+                    error: 'fas fa-exclamation-circle',
+                    info: 'fas fa-info-circle'
+                };
+                
+                message.className = 'p-3 rounded-lg text-sm ' + colors[type];
+                message.innerHTML = '<i class="' + icons[type] + ' mr-2"></i>' + text;
+                message.classList.remove('hidden');
+            }
+
+            // 로그인 폼 처리
             document.getElementById('loginForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 
-                const email = document.getElementById('email').value;
-                const password = document.getElementById('password').value;
+                const email = document.getElementById('loginEmail').value;
+                const password = document.getElementById('loginPassword').value;
                 const loginBtn = document.getElementById('loginBtn');
-                const message = document.getElementById('message');
                 
                 // 로딩 상태
                 loginBtn.disabled = true;
                 loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>로그인 중...';
-                message.classList.add('hidden');
+                document.getElementById('message').classList.add('hidden');
                 
                 try {
                     const response = await fetch('/api/login', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email, password })
                     });
                     
                     const data = await response.json();
                     
                     if (data.success) {
-                        // 사용자 정보 저장
                         localStorage.setItem('user', JSON.stringify(data.user));
-                        
-                        // 성공 메시지
-                        message.className = 'p-3 rounded-lg text-sm bg-green-50 border border-green-200 text-green-700';
-                        message.innerHTML = '<i class="fas fa-check-circle mr-2"></i>로그인 성공! 대시보드로 이동합니다...';
-                        message.classList.remove('hidden');
-                        
-                        // 대시보드로 리다이렉트
-                        setTimeout(() => {
-                            window.location.href = '/dashboard';
-                        }, 1500);
+                        showMessage('로그인 성공! 대시보드로 이동합니다...', 'success');
+                        setTimeout(() => window.location.href = '/dashboard', 1500);
                     } else {
-                        // 에러 메시지
-                        message.className = 'p-3 rounded-lg text-sm bg-red-50 border border-red-200 text-red-700';
-                        message.innerHTML = '<i class="fas fa-exclamation-circle mr-2"></i>' + data.message;
-                        message.classList.remove('hidden');
+                        showMessage(data.message, 'error');
                     }
                 } catch (error) {
-                    message.className = 'p-3 rounded-lg text-sm bg-red-50 border border-red-200 text-red-700';
-                    message.innerHTML = '<i class="fas fa-exclamation-circle mr-2"></i>로그인 중 오류가 발생했습니다.';
-                    message.classList.remove('hidden');
+                    showMessage('로그인 중 오류가 발생했습니다.', 'error');
                 }
                 
-                // 버튼 상태 복원
                 loginBtn.disabled = false;
                 loginBtn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i>로그인';
             });
 
-            // 엔터키 로그인 지원
-            document.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+            // 회원가입 폼 처리
+            document.getElementById('signupForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const name = document.getElementById('signupName').value;
+                const email = document.getElementById('signupEmail').value;
+                const password = document.getElementById('signupPassword').value;
+                const confirmPassword = document.getElementById('signupConfirmPassword').value;
+                const role = document.getElementById('signupRole').value;
+                const signupBtn = document.getElementById('signupBtn');
+                
+                // 클라이언트 유효성 검사
+                if (password !== confirmPassword) {
+                    showMessage('비밀번호가 일치하지 않습니다.', 'error');
+                    return;
                 }
+                
+                if (password.length < 6) {
+                    showMessage('비밀번호는 최소 6자 이상이어야 합니다.', 'error');
+                    return;
+                }
+                
+                // 로딩 상태
+                signupBtn.disabled = true;
+                signupBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>회원가입 중...';
+                document.getElementById('message').classList.add('hidden');
+                
+                try {
+                    const response = await fetch('/api/signup', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, email, password, confirmPassword, role })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        showMessage('회원가입이 완료되었습니다! 로그인해 주세요.', 'success');
+                        
+                        // 3초 후 로그인 탭으로 전환하고 이메일 자동 입력
+                        setTimeout(() => {
+                            switchTab('login');
+                            document.getElementById('loginEmail').value = email;
+                            document.getElementById('signupForm').reset();
+                        }, 2000);
+                    } else {
+                        showMessage(data.message, 'error');
+                    }
+                } catch (error) {
+                    showMessage('회원가입 중 오류가 발생했습니다.', 'error');
+                }
+                
+                signupBtn.disabled = false;
+                signupBtn.innerHTML = '<i class="fas fa-user-plus mr-2"></i>회원가입';
             });
 
             // 이미 로그인된 사용자 체크
