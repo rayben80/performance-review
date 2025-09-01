@@ -596,26 +596,62 @@ app.get('/dashboard', (c) => {
             </header>
 
             <div class="flex">
-                <!-- Sidebar -->
-                <nav id="sidebar" class="bg-white w-64 min-h-screen shadow-sm border-r border-gray-200 hidden lg:block">
+                <!-- 관리자 사이드바 -->
+                <nav id="adminSidebar" class="bg-white w-64 min-h-screen shadow-sm border-r border-gray-200 hidden lg:block">
                     <div class="p-4">
+                        <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p class="text-sm font-medium text-red-800">
+                                <i class="fas fa-crown mr-2"></i>관리자 모드
+                            </p>
+                        </div>
                         <ul class="space-y-2">
                             <li>
                                 <button onclick="showTab('dashboard')" class="tab-button w-full text-left px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors active">
                                     <i class="fas fa-tachometer-alt mr-3"></i>
-                                    대시보드
+                                    관리 대시보드
                                 </button>
                             </li>
                             <li>
                                 <button onclick="showTab('settings')" class="tab-button w-full text-left px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
-                                    <i class="fas fa-cog mr-3"></i>
-                                    설정 관리
+                                    <i class="fas fa-users-cog mr-3"></i>
+                                    회원 관리
                                 </button>
                             </li>
                             <li>
-                                <button onclick="showTab('evaluation')" class="tab-button w-full text-left px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
-                                    <i class="fas fa-clipboard-list mr-3"></i>
-                                    타인 평가
+                                <button onclick="showTab('evaluationManagement')" class="tab-button w-full text-left px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
+                                    <i class="fas fa-tasks mr-3"></i>
+                                    다면평가 관리
+                                </button>
+                            </li>
+                            <li>
+                                <button onclick="showTab('allReports')" class="tab-button w-full text-left px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
+                                    <i class="fas fa-chart-line mr-3"></i>
+                                    전체 평가 결과
+                                </button>
+                            </li>
+                            <li>
+                                <button onclick="showTab('systemSettings')" class="tab-button w-full text-left px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
+                                    <i class="fas fa-cog mr-3"></i>
+                                    시스템 설정
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </nav>
+
+                <!-- 사용자 사이드바 -->
+                <nav id="userSidebar" class="bg-white w-64 min-h-screen shadow-sm border-r border-gray-200 hidden lg:block">
+                    <div class="p-4">
+                        <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <p class="text-sm font-medium text-blue-800">
+                                <i class="fas fa-user mr-2"></i>사용자 모드
+                            </p>
+                        </div>
+                        <ul class="space-y-2">
+                            <li>
+                                <button onclick="showTab('dashboard')" class="tab-button w-full text-left px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors active">
+                                    <i class="fas fa-home mr-3"></i>
+                                    개인 대시보드
                                 </button>
                             </li>
                             <li>
@@ -625,9 +661,21 @@ app.get('/dashboard', (c) => {
                                 </button>
                             </li>
                             <li>
-                                <button onclick="showTab('reports')" class="tab-button w-full text-left px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
+                                <button onclick="showTab('peerEvaluation')" class="tab-button w-full text-left px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
+                                    <i class="fas fa-users mr-3"></i>
+                                    다면 평가
+                                </button>
+                            </li>
+                            <li>
+                                <button onclick="showTab('myReports')" class="tab-button w-full text-left px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
                                     <i class="fas fa-chart-bar mr-3"></i>
-                                    평가 결과
+                                    내 평가 결과
+                                </button>
+                            </li>
+                            <li>
+                                <button onclick="showTab('notifications')" class="tab-button w-full text-left px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
+                                    <i class="fas fa-bell mr-3"></i>
+                                    알림 및 공지
                                 </button>
                             </li>
                         </ul>
@@ -641,30 +689,109 @@ app.get('/dashboard', (c) => {
 
                 <!-- Main Content -->
                 <main class="flex-1 p-6">
-                    <!-- Dashboard Tab -->
-                    <div id="dashboard" class="tab-content active">
+                    <!-- 관리자 대시보드 -->
+                    <div id="adminDashboard" class="tab-content">
                         <div class="mb-6">
-                            <h2 class="text-2xl font-bold text-gray-900 mb-2">대시보드</h2>
-                            <p class="text-gray-600">시스템 현황을 한눈에 확인하세요</p>
+                            <h2 class="text-2xl font-bold text-gray-900 mb-2">
+                                <i class="fas fa-crown text-yellow-500 mr-2"></i>관리 대시보드
+                            </h2>
+                            <p class="text-gray-600">전체 시스템 현황과 회원 관리 정보를 확인하세요</p>
                         </div>
                         
-                        <!-- 통계 카드 -->
+                        <!-- 관리자 통계 카드 -->
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                             <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
                                 <div class="flex items-center justify-between">
                                     <div>
-                                        <p class="text-sm text-gray-600">총 조직</p>
-                                        <p class="text-2xl font-bold text-blue-600" id="totalOrgs">0</p>
+                                        <p class="text-sm text-gray-600">전체 회원수</p>
+                                        <p class="text-2xl font-bold text-blue-600" id="adminTotalUsers">0</p>
                                     </div>
-                                    <i class="fas fa-building text-blue-600 text-2xl"></i>
+                                    <i class="fas fa-users text-blue-600 text-2xl"></i>
                                 </div>
                             </div>
                             
                             <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
                                 <div class="flex items-center justify-between">
                                     <div>
-                                        <p class="text-sm text-gray-600">총 구성원</p>
-                                        <p class="text-2xl font-bold text-green-600" id="totalMembers">0</p>
+                                        <p class="text-sm text-gray-600">승인 대기</p>
+                                        <p class="text-2xl font-bold text-yellow-600" id="adminPendingUsers">0</p>
+                                    </div>
+                                    <i class="fas fa-user-clock text-yellow-600 text-2xl"></i>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-sm text-gray-600">진행 중인 평가</p>
+                                        <p class="text-2xl font-bold text-purple-600" id="adminActiveEvaluations">0</p>
+                                    </div>
+                                    <i class="fas fa-tasks text-purple-600 text-2xl"></i>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-sm text-gray-600">완료된 평가</p>
+                                        <p class="text-2xl font-bold text-green-600" id="adminCompletedEvaluations">0</p>
+                                    </div>
+                                    <i class="fas fa-check-circle text-green-600 text-2xl"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <!-- 최근 회원 가입 -->
+                            <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                                    <i class="fas fa-user-plus text-blue-500 mr-2"></i>최근 가입 승인 요청
+                                </h3>
+                                <div id="adminRecentSignups" class="space-y-3">
+                                    <p class="text-gray-600">승인 대기 중인 회원이 없습니다.</p>
+                                </div>
+                            </div>
+
+                            <!-- 시스템 알림 -->
+                            <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                                    <i class="fas fa-bell text-orange-500 mr-2"></i>시스템 알림
+                                </h3>
+                                <div id="adminSystemAlerts" class="space-y-3">
+                                    <div class="p-3 bg-green-50 border border-green-200 rounded-lg">
+                                        <p class="text-sm text-green-800">시스템이 정상 작동 중입니다.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 사용자 대시보드 -->
+                    <div id="userDashboard" class="tab-content">
+                        <div class="mb-6">
+                            <h2 class="text-2xl font-bold text-gray-900 mb-2">
+                                <i class="fas fa-home text-blue-500 mr-2"></i>개인 대시보드
+                            </h2>
+                            <p class="text-gray-600">나의 평가 현황과 개인 통계를 확인하세요</p>
+                        </div>
+                        
+                        <!-- 사용자 통계 카드 -->
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                            <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-sm text-gray-600">내 자기평가</p>
+                                        <p class="text-2xl font-bold text-blue-600" id="userSelfEvaluations">0</p>
+                                    </div>
+                                    <i class="fas fa-user-check text-blue-600 text-2xl"></i>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-sm text-gray-600">참여한 다면평가</p>
+                                        <p class="text-2xl font-bold text-green-600" id="userPeerEvaluations">0</p>
                                     </div>
                                     <i class="fas fa-users text-green-600 text-2xl"></i>
                                 </div>
@@ -673,33 +800,52 @@ app.get('/dashboard', (c) => {
                             <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
                                 <div class="flex items-center justify-between">
                                     <div>
-                                        <p class="text-sm text-gray-600">총 평가</p>
-                                        <p class="text-2xl font-bold text-purple-600" id="totalEvaluations">0</p>
+                                        <p class="text-sm text-gray-600">받은 평가</p>
+                                        <p class="text-2xl font-bold text-purple-600" id="userReceivedEvaluations">0</p>
                                     </div>
-                                    <i class="fas fa-clipboard-list text-purple-600 text-2xl"></i>
+                                    <i class="fas fa-star text-purple-600 text-2xl"></i>
                                 </div>
                             </div>
                             
                             <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
                                 <div class="flex items-center justify-between">
                                     <div>
-                                        <p class="text-sm text-gray-600">완료 평가</p>
-                                        <p class="text-2xl font-bold text-orange-600" id="completedEvaluations">0</p>
+                                        <p class="text-sm text-gray-600">완료율</p>
+                                        <p class="text-2xl font-bold text-orange-600" id="userCompletionRate">0%</p>
                                     </div>
-                                    <i class="fas fa-check-circle text-orange-600 text-2xl"></i>
+                                    <i class="fas fa-percentage text-orange-600 text-2xl"></i>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- 최근 활동 -->
-                        <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4">
-                                <i class="fas fa-history mr-2"></i>최근 활동
-                            </h3>
-                            <div id="recentActivities" class="space-y-3">
-                                <p class="text-gray-600">최근 활동이 없습니다.</p>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <!-- 진행 중인 평가 -->
+                            <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                                    <i class="fas fa-clock text-blue-500 mr-2"></i>진행 중인 평가
+                                </h3>
+                                <div id="userOngoingEvaluations" class="space-y-3">
+                                    <p class="text-gray-600">진행 중인 평가가 없습니다.</p>
+                                </div>
+                            </div>
+
+                            <!-- 최근 알림 -->
+                            <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                                    <i class="fas fa-bell text-orange-500 mr-2"></i>최근 알림
+                                </h3>
+                                <div id="userRecentNotifications" class="space-y-3">
+                                    <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                        <p class="text-sm text-blue-800">업무평가 시스템에 오신 것을 환영합니다!</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Dashboard Tab (자동 전환용) -->
+                    <div id="dashboard" class="tab-content active">
+                        <!-- JavaScript에서 권한에 따라 내용이 동적으로 결정됨 -->
                     </div>
 
                     <!-- 설정 관리 탭 -->
@@ -749,8 +895,91 @@ app.get('/dashboard', (c) => {
                             </div>
                         </div>
                     </div>
+                    <!-- 관리자 전용 탭들 -->
+                    <div id="evaluationManagement" class="tab-content">
+                        <div class="mb-6">
+                            <h2 class="text-2xl font-bold text-gray-900 mb-2">다면평가 관리</h2>
+                            <p class="text-gray-600">평가 항목 설정, 평가 기간 관리, 평가 대상 설정</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                            <p class="text-gray-600">다면평가 관리 기능이 곧 제공될 예정입니다.</p>
+                        </div>
+                    </div>
+
+                    <div id="allReports" class="tab-content">
+                        <div class="mb-6">
+                            <h2 class="text-2xl font-bold text-gray-900 mb-2">전체 평가 결과</h2>
+                            <p class="text-gray-600">모든 사용자의 평가 결과와 통계를 확인하세요</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                            <p class="text-gray-600">전체 평가 결과 기능이 곧 제공될 예정입니다.</p>
+                        </div>
+                    </div>
+
+                    <div id="systemSettings" class="tab-content">
+                        <div class="mb-6">
+                            <h2 class="text-2xl font-bold text-gray-900 mb-2">시스템 설정</h2>
+                            <p class="text-gray-600">시스템 전반적인 설정을 관리합니다</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                            <p class="text-gray-600">시스템 설정 기능이 곧 제공될 예정입니다.</p>
+                        </div>
+                    </div>
+
+                    <!-- 사용자 전용 탭들 -->
+                    <div id="selfEvaluation" class="tab-content">
+                        <div class="mb-6">
+                            <h2 class="text-2xl font-bold text-gray-900 mb-2">자기 평가</h2>
+                            <p class="text-gray-600">자신의 업무 성과를 평가해보세요</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                            <p class="text-gray-600">자기 평가 기능이 곧 제공될 예정입니다.</p>
+                        </div>
+                    </div>
+
+                    <div id="peerEvaluation" class="tab-content">
+                        <div class="mb-6">
+                            <h2 class="text-2xl font-bold text-gray-900 mb-2">다면 평가</h2>
+                            <p class="text-gray-600">동료들을 평가하고 피드백을 제공하세요</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                            <p class="text-gray-600">다면 평가 기능이 곧 제공될 예정입니다.</p>
+                        </div>
+                    </div>
+
+                    <div id="myReports" class="tab-content">
+                        <div class="mb-6">
+                            <h2 class="text-2xl font-bold text-gray-900 mb-2">내 평가 결과</h2>
+                            <p class="text-gray-600">나의 평가 결과와 피드백을 확인하세요</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                            <p class="text-gray-600">개인 평가 결과 기능이 곧 제공될 예정입니다.</p>
+                        </div>
+                    </div>
+
+                    <div id="notifications" class="tab-content">
+                        <div class="mb-6">
+                            <h2 class="text-2xl font-bold text-gray-900 mb-2">알림 및 공지</h2>
+                            <p class="text-gray-600">중요한 알림과 공지사항을 확인하세요</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                            <div class="space-y-4">
+                                <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                    <div class="flex items-start">
+                                        <i class="fas fa-info-circle text-blue-500 mt-1 mr-3"></i>
+                                        <div>
+                                            <h4 class="font-medium text-blue-900">업무평가 시스템 안내</h4>
+                                            <p class="text-sm text-blue-700 mt-1">새로운 업무평가 시스템에 오신 것을 환영합니다. 자기평가와 다면평가를 통해 성장하세요!</p>
+                                            <p class="text-xs text-blue-600 mt-2">2024-09-01</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 기존 호환성 탭들 -->
                     <div id="evaluation" class="tab-content"></div>
-                    <div id="selfEvaluation" class="tab-content"></div>
                     <div id="reports" class="tab-content"></div>
                 </main>
             </div>
@@ -772,7 +1001,84 @@ app.get('/dashboard', (c) => {
                 document.getElementById('userName').textContent = userData.name;
                 document.getElementById('userRole').textContent = userData.role === 'admin' ? '관리자' : '사용자';
                 
+                // 권한별 UI 표시
+                setupRoleBasedUI(userData.role);
+                
                 return true;
+            }
+
+            // 권한별 UI 설정
+            function setupRoleBasedUI(role) {
+                const adminSidebar = document.getElementById('adminSidebar');
+                const userSidebar = document.getElementById('userSidebar');
+                const adminDashboard = document.getElementById('adminDashboard');
+                const userDashboard = document.getElementById('userDashboard');
+                const dashboard = document.getElementById('dashboard');
+
+                if (role === 'admin') {
+                    // 관리자 UI 표시
+                    adminSidebar.classList.remove('hidden');
+                    userSidebar.classList.add('hidden');
+                    
+                    // 대시보드 내용을 관리자용으로 설정
+                    dashboard.innerHTML = adminDashboard.innerHTML;
+                    loadAdminDashboardData();
+                } else {
+                    // 사용자 UI 표시
+                    userSidebar.classList.remove('hidden');
+                    adminSidebar.classList.add('hidden');
+                    
+                    // 대시보드 내용을 사용자용으로 설정
+                    dashboard.innerHTML = userDashboard.innerHTML;
+                    loadUserDashboardData();
+                }
+            }
+
+            // 관리자 대시보드 데이터 로드
+            function loadAdminDashboardData() {
+                // 전체 사용자 수 로드
+                fetch('/api/users')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const totalUsers = data.users.length;
+                            const pendingUsers = data.users.filter(u => u.status === 'pending').length;
+                            
+                            document.getElementById('adminTotalUsers').textContent = totalUsers;
+                            document.getElementById('adminPendingUsers').textContent = pendingUsers;
+                        }
+                    })
+                    .catch(error => console.error('Admin data load failed:', error));
+
+                // 대기 중인 회원 목록 미리보기
+                fetch('/api/users/pending')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const container = document.getElementById('adminRecentSignups');
+                            if (data.users.length === 0) {
+                                container.innerHTML = '<p class="text-gray-600">승인 대기 중인 회원이 없습니다.</p>';
+                            } else {
+                                const recentSignups = data.users.slice(0, 3).map(user => 
+                                    '<div class="flex items-center justify-between p-2 bg-gray-50 rounded">' +
+                                        '<span class="text-sm font-medium">' + user.name + '</span>' +
+                                        '<span class="text-xs text-gray-500">' + new Date(user.createdAt).toLocaleDateString('ko-KR') + '</span>' +
+                                    '</div>'
+                                ).join('');
+                                container.innerHTML = recentSignups;
+                            }
+                        }
+                    })
+                    .catch(error => console.error('Pending users load failed:', error));
+            }
+
+            // 사용자 대시보드 데이터 로드
+            function loadUserDashboardData() {
+                // 개인 통계 데이터 (임시 데이터)
+                document.getElementById('userSelfEvaluations').textContent = '0';
+                document.getElementById('userPeerEvaluations').textContent = '0';
+                document.getElementById('userReceivedEvaluations').textContent = '0';
+                document.getElementById('userCompletionRate').textContent = '0%';
             }
 
             // 로그아웃 함수
