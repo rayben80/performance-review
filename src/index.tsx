@@ -1136,12 +1136,7 @@ app.get('/dashboard', (c) => {
                                     관리 대시보드
                                 </button>
                             </li>
-                            <li>
-                                <button onclick="showTab('settings')" class="tab-button w-full text-left px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
-                                    <i class="fas fa-users-cog mr-3"></i>
-                                    회원 관리
-                                </button>
-                            </li>
+
                             <li>
                                 <button onclick="showTab('evaluationManagement')" class="tab-button w-full text-left px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
                                     <i class="fas fa-tasks mr-3"></i>
@@ -1268,12 +1263,18 @@ app.get('/dashboard', (c) => {
 
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <!-- 최근 회원 가입 -->
-                            <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                                <h3 class="text-lg font-semibold text-gray-900 mb-4">
-                                    <i class="fas fa-user-plus text-blue-500 mr-2"></i>최근 가입 승인 요청
-                                </h3>
+                            <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onclick="showTab('systemSettings'); showSettingsTab('users');">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="text-lg font-semibold text-gray-900">
+                                        <i class="fas fa-user-plus text-blue-500 mr-2"></i>최근 가입 승인 요청
+                                    </h3>
+                                    <i class="fas fa-arrow-right text-gray-400 text-sm"></i>
+                                </div>
                                 <div id="adminRecentSignups" class="space-y-3">
                                     <p class="text-gray-600">승인 대기 중인 회원이 없습니다.</p>
+                                </div>
+                                <div class="mt-3 pt-3 border-t border-gray-100">
+                                    <p class="text-xs text-blue-600 font-medium">클릭하여 사용자 관리로 이동</p>
                                 </div>
                             </div>
 
@@ -1373,53 +1374,7 @@ app.get('/dashboard', (c) => {
                         <!-- JavaScript에서 권한에 따라 내용이 동적으로 결정됨 -->
                     </div>
 
-                    <!-- 설정 관리 탭 -->
-                    <div id="settings" class="tab-content">
-                        <div class="mb-6">
-                            <h2 class="text-2xl font-bold text-gray-900 mb-2">설정 관리</h2>
-                            <p class="text-gray-600">시스템 설정 및 사용자 관리</p>
-                        </div>
 
-                        <!-- 회원 승인 관리 -->
-                        <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm mb-6">
-                            <div class="flex items-center justify-between mb-4">
-                                <h3 class="text-lg font-semibold text-gray-900">
-                                    <i class="fas fa-user-check mr-2"></i>회원 승인 관리
-                                </h3>
-                                <button onclick="refreshPendingUsers()" 
-                                        class="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition-colors">
-                                    <i class="fas fa-sync-alt mr-1"></i>새로고침
-                                </button>
-                            </div>
-                            
-                            <div id="pendingUsersContainer">
-                                <div class="text-center py-8 text-gray-500">
-                                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
-                                    <p>대기 중인 회원을 불러오는 중...</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 전체 사용자 관리 -->
-                        <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                            <div class="flex items-center justify-between mb-4">
-                                <h3 class="text-lg font-semibold text-gray-900">
-                                    <i class="fas fa-users mr-2"></i>전체 사용자 관리
-                                </h3>
-                                <button onclick="refreshAllUsers()" 
-                                        class="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 transition-colors">
-                                    <i class="fas fa-sync-alt mr-1"></i>새로고침
-                                </button>
-                            </div>
-                            
-                            <div id="allUsersContainer">
-                                <div class="text-center py-8 text-gray-500">
-                                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
-                                    <p>사용자 목록을 불러오는 중...</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                     <!-- 관리자 전용 탭들 -->
                     <div id="evaluationManagement" class="tab-content">
                         <div class="mb-6">
@@ -1715,45 +1670,88 @@ app.get('/dashboard', (c) => {
                             </div>
                         </div>
 
-                        <!-- 고도화된 사용자 관리 -->
+                        <!-- 통합 사용자 관리 -->
                         <div id="usersSettings" class="settings-content hidden">
+                            <!-- 승인 대기 회원 관리 -->
+                            <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm mb-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="text-lg font-semibold text-gray-900">
+                                        <i class="fas fa-user-clock text-orange-500 mr-2"></i>승인 대기 회원
+                                    </h3>
+                                    <div class="flex space-x-2">
+                                        <button onclick="bulkApproveUsers()" class="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm hover:bg-green-200 transition-colors">
+                                            <i class="fas fa-check-double mr-1"></i>전체 승인
+                                        </button>
+                                        <button onclick="refreshPendingUsers()" 
+                                                class="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition-colors">
+                                            <i class="fas fa-sync-alt mr-1"></i>새로고침
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div id="pendingUsersContainer">
+                                    <div class="text-center py-8 text-gray-500">
+                                        <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                                        <p>대기 중인 회원을 불러오는 중...</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 전체 사용자 관리 -->
+                            <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm mb-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="text-lg font-semibold text-gray-900">
+                                        <i class="fas fa-users text-blue-500 mr-2"></i>전체 사용자 관리
+                                    </h3>
+                                    <button onclick="refreshAllUsers()" 
+                                            class="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 transition-colors">
+                                        <i class="fas fa-sync-alt mr-1"></i>새로고침
+                                    </button>
+                                </div>
+                                
+                                <div id="allUsersContainer">
+                                    <div class="text-center py-8 text-gray-500">
+                                        <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                                        <p>사용자 목록을 불러오는 중...</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 고급 관리 도구 -->
                             <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
                                 <h3 class="text-lg font-semibold text-gray-900 mb-4">
-                                    <i class="fas fa-users-cog text-indigo-500 mr-2"></i>고급 사용자 관리
+                                    <i class="fas fa-tools text-indigo-500 mr-2"></i>고급 관리 도구
                                 </h3>
                                 
-                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                    <!-- 사용자 상태 관리 -->
-                                    <div>
-                                        <h4 class="font-medium text-gray-900 mb-3">사용자 상태 관리</h4>
-                                        <div id="userStatusManagement" class="space-y-3">
-                                            <div class="text-center py-4 text-gray-500">
-                                                <i class="fas fa-spinner fa-spin text-xl mb-2"></i>
-                                                <p>사용자 목록을 불러오는 중...</p>
-                                            </div>
-                                        </div>
-                                    </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <button onclick="cleanupInactiveUsers()" class="flex flex-col items-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg hover:bg-yellow-100 transition-colors">
+                                        <i class="fas fa-user-slash text-yellow-600 text-xl mb-2"></i>
+                                        <span class="text-sm font-medium text-yellow-800">비활성 사용자 정리</span>
+                                    </button>
                                     
-                                    <!-- 일괄 작업 -->
-                                    <div>
-                                        <h4 class="font-medium text-gray-900 mb-3">일괄 작업</h4>
-                                        <div class="space-y-3">
-                                            <button onclick="bulkApproveUsers()" class="w-full flex items-center justify-center px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors">
-                                                <i class="fas fa-check-double mr-2"></i>
-                                                대기 중인 회원 모두 승인
-                                            </button>
-                                            <button onclick="cleanupInactiveUsers()" class="w-full flex items-center justify-center px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors">
-                                                <i class="fas fa-user-slash mr-2"></i>
-                                                비활성 사용자 정리
-                                            </button>
-                                            <button onclick="exportUserList()" class="w-full flex items-center justify-center px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors">
-                                                <i class="fas fa-download mr-2"></i>
-                                                사용자 목록 내보내기
-                                            </button>
-                                            <button onclick="testEmailService()" class="w-full flex items-center justify-center px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors">
-                                                <i class="fas fa-envelope-open-text mr-2"></i>
-                                                이메일 알림 테스트
-                                            </button>
+                                    <button onclick="exportUserList()" class="flex flex-col items-center p-4 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">
+                                        <i class="fas fa-download text-blue-600 text-xl mb-2"></i>
+                                        <span class="text-sm font-medium text-blue-800">사용자 목록 내보내기</span>
+                                    </button>
+                                    
+                                    <button onclick="testEmailService()" class="flex flex-col items-center p-4 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors">
+                                        <i class="fas fa-envelope-open-text text-purple-600 text-xl mb-2"></i>
+                                        <span class="text-sm font-medium text-purple-800">이메일 알림 테스트</span>
+                                    </button>
+                                    
+                                    <button onclick="showUserStats()" class="flex flex-col items-center p-4 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors">
+                                        <i class="fas fa-chart-bar text-green-600 text-xl mb-2"></i>
+                                        <span class="text-sm font-medium text-green-800">사용자 통계</span>
+                                    </button>
+                                </div>
+                                
+                                <!-- 상세 사용자 상태 관리 -->
+                                <div class="mt-6">
+                                    <h4 class="font-medium text-gray-900 mb-3">사용자 상태 관리</h4>
+                                    <div id="userStatusManagement" class="space-y-3">
+                                        <div class="text-center py-4 text-gray-500">
+                                            <i class="fas fa-info-circle text-xl mb-2"></i>
+                                            <p>위의 "전체 사용자 관리"에서 사용자를 선택하면 상세 관리 옵션이 여기에 표시됩니다.</p>
                                         </div>
                                     </div>
                                 </div>
