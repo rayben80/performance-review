@@ -490,7 +490,7 @@ app.post('/api/organizations/initialize', async (c) => {
       name: 'CX팀',
       type: 'team',
       parentId: null,
-      description: '고객 경험 및 기술 지원을 담당하는 팀',
+      description: '고객 경험, 기술 지원, 마케팅 및 사업 운영을 담당하는 팀',
       memberCount: 0,
       createdAt: timestamp,
       updatedAt: timestamp
@@ -525,24 +525,22 @@ app.post('/api/organizations/initialize', async (c) => {
       createdAt: timestamp,
       updatedAt: timestamp
     },
-    
-    // 사업운영
-    'org_business_ops': {
-      id: 'org_business_ops',
-      name: '사업운영',
-      type: 'team',
-      parentId: null,
-      description: '사업 전략 및 마케팅 업무를 담당하는 팀',
+    'org_cx_tech_marketing': {
+      id: 'org_cx_tech_marketing',
+      name: 'Technical Marketing',
+      type: 'part',
+      parentId: 'org_cx',
+      description: '기술 중심의 마케팅 전략 및 실행',
       memberCount: 0,
       createdAt: timestamp,
       updatedAt: timestamp
     },
-    'org_business_ops_tech_marketing': {
-      id: 'org_business_ops_tech_marketing',
-      name: 'Technical Marketing',
+    'org_cx_business_ops': {
+      id: 'org_cx_business_ops',
+      name: '사업운영',
       type: 'part',
-      parentId: 'org_business_ops',
-      description: '기술 중심의 마케팅 전략 및 실행',
+      parentId: 'org_cx',
+      description: '사업 전략 및 운영 업무',
       memberCount: 0,
       createdAt: timestamp,
       updatedAt: timestamp
@@ -1525,7 +1523,7 @@ app.get('/dashboard', (c) => {
                                         
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-2">이름</label>
-                                            <input type="text" id="orgName" placeholder="예: 개발3팀" 
+                                            <input type="text" id="orgName" placeholder="예: Digital마케팅파트" 
                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                                         </div>
                                         
@@ -1829,7 +1827,7 @@ app.get('/dashboard', (c) => {
                                                 </label>
                                                 <label class="flex items-center">
                                                     <input type="checkbox" class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
-                                                    <span class="ml-2 text-sm">개발1팀만</span>
+                                                    <span class="ml-2 text-sm">Sales팀만</span>
                                                 </label>
                                                 <label class="flex items-center">
                                                     <input type="checkbox" class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
@@ -2267,8 +2265,10 @@ app.get('/dashboard', (c) => {
                 }
             }
 
-            // 시스템 설정 탭 전환 함수
-            function showSettingsTab(tabName) {
+            // 시스템 설정 탭 전환 함수를 전역으로 정의
+            window.showSettingsTab = function(tabName) {
+                console.log('showSettingsTab 호출:', tabName);
+                
                 // 모든 설정 탭 숨기기
                 const settingsContents = document.querySelectorAll('.settings-content');
                 settingsContents.forEach(content => content.classList.add('hidden'));
@@ -2291,10 +2291,14 @@ app.get('/dashboard', (c) => {
                 // 특정 탭 데이터 로드
                 switch(tabName) {
                     case 'organization':
-                        refreshOrganization();
+                        if (typeof refreshOrganization === 'function') {
+                            refreshOrganization();
+                        }
                         break;
                     case 'users':
-                        loadUserStatusManagement();
+                        if (typeof loadUserStatusManagement === 'function') {
+                            loadUserStatusManagement();
+                        }
                         break;
                 }
             }
@@ -2408,7 +2412,7 @@ app.get('/dashboard', (c) => {
             
             // 실제 클라우드사업본부 조직 구조로 초기화
             async function initializeRealOrganization() {
-                if (!confirm('⚠️ 기존 조직 데이터를 모두 삭제하고 실제 클라우드사업본부 구조로 초기화하시겠습니까?\\n\\n초기화될 구조:\\n• Sales팀 (영업, 영업관리)\\n• CX팀 (고객서비스, 기술지원, Technical Writing)\\n• 사업운영 (Technical Marketing)')) {
+                if (!confirm('⚠️ 기존 조직 데이터를 모두 삭제하고 실제 클라우드사업본부 구조로 초기화하시겠습니까?\\n\\n초기화될 구조:\\n• Sales팀 (영업, 영업관리)\\n• CX팀 (고객서비스, 기술지원, Technical Writing, Technical Marketing, 사업운영)')) {
                     return;
                 }
                 
@@ -2796,9 +2800,16 @@ app.get('/dashboard', (c) => {
                 }
             }
 
-            // 메인 탭 전환 함수 (핵심 기능)
-            function showTab(tabName) {
-                console.log('showTab 호출됨:', tabName); // 디버깅용
+            // 메인 탭 전환 함수를 전역으로 정의하여 onclick에서 사용 가능하게 함
+            window.showTab = function(tabName) {
+                console.log('showTab 호출:', tabName);
+                
+                // 권한 확인
+                const user = JSON.parse(localStorage.getItem('user') || '{}');
+                if (tabName === 'systemSettings' && user.role !== 'admin') {
+                    alert('관리자 권한이 필요한 메뉴입니다.');
+                    return;
+                }
                 
                 // 모든 탭 콘텐츠 숨기기
                 const allTabContents = document.querySelectorAll('.tab-content');
@@ -2822,45 +2833,40 @@ app.get('/dashboard', (c) => {
                     targetContent.classList.add('active');
                 }
                 
-                // 선택된 탭 버튼 활성화 (onclick에서 호출된 버튼 찾기)
-                const activeButton = event && event.target ? event.target.closest('button') : null;
-                if (activeButton) {
-                    activeButton.classList.add('active', 'bg-gray-100', 'text-gray-900');
-                    activeButton.classList.remove('text-gray-600');
+                // 선택된 탭 버튼 활성화 (이벤트가 있을 때만)
+                if (event && event.target) {
+                    const activeButton = event.target.closest('button');
+                    if (activeButton) {
+                        activeButton.classList.add('active', 'bg-gray-100', 'text-gray-900');
+                        activeButton.classList.remove('text-gray-600');
+                    }
                 }
                 
                 // 특별한 탭 처리
                 switch(tabName) {
                     case 'dashboard':
                         // 대시보드는 권한에 따라 다른 내용 표시
-                        const user = JSON.parse(localStorage.getItem('user') || '{}');
                         const dashboardContent = document.getElementById('dashboard');
                         if (dashboardContent && user.role === 'admin') {
-                            const adminDashboard = document.getElementById('adminDashboard');
-                            if (adminDashboard) {
-                                dashboardContent.innerHTML = adminDashboard.innerHTML;
-                                loadAdminDashboardData();
-                            }
+                            // 관리자 대시보드 로드 로직
+                            console.log('관리자 대시보드 로드');
                         } else if (dashboardContent) {
-                            const userDashboard = document.getElementById('userDashboard');
-                            if (userDashboard) {
-                                dashboardContent.innerHTML = userDashboard.innerHTML;
-                                loadUserDashboardData();
-                            }
+                            // 일반 사용자 대시보드 로드 로직  
+                            console.log('사용자 대시보드 로드');
                         }
-                        break;
-                        
-                    case 'settings':
-                        setTimeout(loadSettingsData, 100);
                         break;
                         
                     case 'systemSettings':
                         // 시스템 설정은 기본적으로 조직 설정 탭 표시
-                        setTimeout(() => showSettingsTab('organization'), 100);
+                        setTimeout(() => {
+                            if (typeof window.showSettingsTab === 'function') {
+                                window.showSettingsTab('organization');
+                            }
+                        }, 100);
                         break;
                 }
                 
-                console.log('탭 전환 완료:', tabName); // 디버깅용
+                console.log('탭 전환 완료:', tabName);
             }
         </script>
 

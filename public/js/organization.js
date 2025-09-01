@@ -211,43 +211,109 @@ function createDepartmentElement(deptName, deptData) {
     return div;
 }
 
-// 조직 편집
-function editOrganization(orgId) {
+// 조직 편집 (전역 함수)
+window.editOrganization = async function(orgId) {
     if (!isAdmin()) {
         showToast('관리자 권한이 필요합니다.', 'error');
         return;
     }
     
-    const org = organizationData[orgId];
-    if (!org) {
-        showToast('조직 정보를 찾을 수 없습니다.', 'error');
-        return;
-    }
-    
-    const newName = prompt(`${org.type === 'department' ? '부서' : '팀'} 이름을 수정하세요:`, org.name);
-    if (newName && newName.trim() !== org.name) {
-        org.name = newName.trim();
-        saveToStorage();
-        renderOrganizationChart();
-        showToast('조직 정보가 수정되었습니다.', 'success');
+    try {
+        // API에서 조직 목록 가져오기
+        const response = await fetch('/api/organizations');
+        const data = await response.json();
+        
+        if (!data.success) {
+            showToast('조직 데이터를 가져올 수 없습니다.', 'error');
+            return;
+        }
+        
+        // 해당 조직 찾기
+        const org = data.organizations.find(o => o.id === orgId);
+        if (!org) {
+            showToast('조직 정보를 찾을 수 없습니다.', 'error');
+            return;
+        }
+        
+        const typeText = org.type === 'team' ? '팀' : '파트';
+        const newName = prompt(`${typeText} 이름을 수정하세요:`, org.name);
+        
+        if (newName && newName.trim() !== org.name) {
+            // API로 조직 정보 수정
+            const updateResponse = await fetch(`/api/organizations/${orgId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: newName.trim() })
+            });
+            
+            const updateData = await updateResponse.json();
+            
+            if (updateData.success) {
+                // 조직도 새로고침
+                if (typeof refreshOrganization === 'function') {
+                    refreshOrganization();
+                } else if (typeof renderOrganizationChart === 'function') {
+                    renderOrganizationChart();
+                }
+                showToast('조직 정보가 수정되었습니다.', 'success');
+            } else {
+                showToast(updateData.message || '수정에 실패했습니다.', 'error');
+            }
+        }
+    } catch (error) {
+        console.error('조직 수정 오류:', error);
+        showToast('조직 수정 중 오류가 발생했습니다.', 'error');
     }
 }
 
-// 조직 삭제
-function deleteOrganization(orgId) {
+// 조직 삭제 (전역 함수)
+window.deleteOrganization = async function(orgId) {
     if (!isAdmin()) {
         showToast('관리자 권한이 필요합니다.', 'error');
         return;
     }
     
-    const org = organizationData[orgId];
-    if (!org) return;
-    
-    if (confirm(`"${org.name}" ${org.type === 'department' ? '부서' : '팀'}를 삭제하시겠습니까?`)) {
-        delete organizationData[orgId];
-        saveToStorage();
-        renderOrganizationChart();
-        showToast('조직이 삭제되었습니다.', 'info');
+    try {
+        // API에서 조직 목록 가져오기
+        const response = await fetch('/api/organizations');
+        const data = await response.json();
+        
+        if (!data.success) {
+            showToast('조직 데이터를 가져올 수 없습니다.', 'error');
+            return;
+        }
+        
+        // 해당 조직 찾기
+        const org = data.organizations.find(o => o.id === orgId);
+        if (!org) {
+            showToast('조직 정보를 찾을 수 없습니다.', 'error');
+            return;
+        }
+        
+        const typeText = org.type === 'team' ? '팀' : '파트';
+        if (confirm(`"${org.name}" ${typeText}를 삭제하시겠습니까?`)) {
+            // API로 조직 삭제
+            const deleteResponse = await fetch(`/api/organizations/${orgId}`, {
+                method: 'DELETE'
+            });
+            
+            const deleteData = await deleteResponse.json();
+            
+            if (deleteData.success) {
+                // 조직도 새로고침
+                if (typeof refreshOrganization === 'function') {
+                    refreshOrganization();
+                } else if (typeof renderOrganizationChart === 'function') {
+                    renderOrganizationChart();
+                }
+                showToast('조직이 삭제되었습니다.', 'info');
+            } else {
+                showToast(deleteData.message || '삭제에 실패했습니다.', 'error');
+            }
+        }
+    } catch (error) {
+        console.error('조직 삭제 오류:', error);
+        showToast('조직 삭제 중 오류가 발생했습니다.', 'error');
     }
 }
 

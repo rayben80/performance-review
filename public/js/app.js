@@ -9,12 +9,29 @@ let qualitativeItems = [];
 let organizationData = {};
 let evaluationData = {};
 let currentEvaluationType = 'quantitative';
-let currentUser = {
-    id: 'admin',
-    name: '관리자',
-    role: 'admin', // 'admin' 또는 'user'
-    email: 'admin@company.com'
-};
+// 현재 사용자 (localStorage에서 로드)
+let currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+
+// 기본값 설정
+if (!currentUser.role) {
+    currentUser = {
+        id: 'guest',
+        name: '게스트',
+        role: 'guest',
+        email: ''
+    };
+}
+
+// 데이터베이스 연결 확인 함수
+async function checkDatabaseConnection() {
+    try {
+        const response = await fetch('/api/health');
+        return response.ok;
+    } catch (error) {
+        console.log('D1 데이터베이스 연결 실패, LocalStorage 모드로 전환');
+        return false;
+    }
+}
 
 // 초기화
 document.addEventListener('DOMContentLoaded', async function() {
@@ -139,7 +156,7 @@ function updateMenuAccess() {
 
 // 탭 접근 권한 확인
 function checkTabPermission(tabName) {
-    const adminOnlyTabs = ['settings'];
+    const adminOnlyTabs = ['settings', 'systemSettings'];
     
     // 관리자 전용 탭인지 확인
     if (adminOnlyTabs.includes(tabName)) {
@@ -256,6 +273,7 @@ function showTab(tabName) {
         
         // 모든 탭 콘텐츠 숨기기
         document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.add('hidden');
             content.classList.remove('active');
         });
         
@@ -269,6 +287,7 @@ function showTab(tabName) {
         // 선택된 탭 콘텐츠 표시
         const activeContent = document.getElementById(tabName);
         if (activeContent) {
+            activeContent.classList.remove('hidden');
             activeContent.classList.add('active');
         }
         
@@ -290,6 +309,17 @@ function handleTabSpecialCases(tabName) {
             renderSettings();
             updateEvaluationCounts();
             renderAdminList();
+            break;
+        case 'systemSettings':
+            // 시스템 설정은 기본적으로 조직 설정 탭 표시
+            console.log('시스템 설정 탭 로드');
+            setTimeout(() => {
+                if (typeof showSettingsTab === 'function') {
+                    showSettingsTab('organization');
+                } else {
+                    console.warn('showSettingsTab 함수가 정의되지 않음');
+                }
+            }, 100);
             break;
         case 'dashboard':
             // 대시보드 데이터 업데이트
@@ -678,8 +708,9 @@ window.addEventListener('beforeunload', function() {
 });
 
 // 관리자 권한 확인 (다른 파일에서 사용하기 위한 전역 함수)
-function isAdmin() {
-    return currentUser.role === 'admin';
+window.isAdmin = function() {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    return user.role === 'admin';
 }
 
 // 현재 사용자 정보 반환

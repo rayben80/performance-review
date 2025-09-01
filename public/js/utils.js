@@ -2,8 +2,8 @@
  * 클라우드사업본부 업무평가 시스템 - 유틸리티 함수들
  */
 
-// Toast 메시지 표시
-function showToast(message, type = 'info') {
+// Toast 메시지 표시 (전역 함수)
+window.showToast = function(message, type = 'info') {
     // 기존 토스트 제거
     const existingToast = document.querySelector('.toast-message');
     if (existingToast) {

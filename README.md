@@ -28,8 +28,7 @@
 - **시각적 조직도**: 트리 구조로 조직 관계 표시
 - **실제 구조 적용**: 클라우드사업본부의 실제 조직 구조 구현
   - **Sales팀**: 영업, 영업관리
-  - **CX팀**: 고객서비스, 기술지원, Technical Writing  
-  - **사업운영**: Technical Marketing
+  - **CX팀**: 고객서비스, 기술지원, Technical Writing, Technical Marketing, 사업운영
 
 ### 👥 고도화된 사용자 관리
 - **다중 상태 관리**: 승인/대기/거부/비활성/삭제
@@ -246,10 +245,10 @@ webapp/
 // 조직 객체
 {
   id: "org_1234567890",
-  name: "개발1팀",
+  name: "CX팀",
   type: "team|part",
   parentId: "parent_org_id_optional",
-  description: "조직 설명",
+  description: "고객 경험, 기술 지원, 마케팅 및 사업 운영을 담당하는 팀",
   memberCount: 5,
   createdAt: "2025-09-01T12:00:00.000Z"
 }
@@ -323,7 +322,7 @@ curl http://localhost:3000/api/health
 - ✅ **3단계 역할 시스템** (관리자, 사용자, 관리자겸사용자)
 - ✅ 시스템 설정 대시보드 (4개 탭)
 - ✅ 조직 구조 관리 (팀/파트 CRUD)
-- ✅ **실제 클라우드사업본부 조직 구조 구현** (Sales팀, CX팀, 사업운영)  
+- ✅ **실제 클라우드사업본부 조직 구조 구현** (Sales팀, CX팀)  
 - ✅ 고도화된 사용자 관리 (상태 변경, 일괄 작업, CSV 내보내기)
 - ✅ 평가 유형 설정 (정량/정성 평가)
 - ✅ 역할별 UI 분리 (관리자/사용자 전용 인터페이스)
@@ -348,7 +347,7 @@ curl http://localhost:3000/api/health
 
 ## 📞 연락처
 
-- **개발팀**: 클라우드사업본부 개발팀
+- **개발팀**: 클라우드사업본부 CX팀
 - **이슈 리포팅**: GitHub Issues
 - **이메일**: admin@company.com
 
