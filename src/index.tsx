@@ -3,9 +3,13 @@ import { serveStatic } from 'hono/cloudflare-workers'
 
 const app = new Hono()
 
-// 정적 파일 서빙 - Cloudflare Pages에서는 public 폴더가 루트로 서빙됨
-app.use('/public/*', serveStatic())
-app.use('/*', serveStatic())
+// 정적 파일 서빙 - Cloudflare Pages 방식
+// public 폴더의 파일들을 /public/* 경로로 서빙
+app.use('/public/*', serveStatic({ root: './' }))
+
+// 루트 정적 파일들 (favicon.ico 등)
+app.use('/favicon.ico', serveStatic({ path: './favicon.ico' }))
+app.use('/robots.txt', serveStatic({ path: './robots.txt' }))
 
 // API 라우트
 app.get('/api/health', (c) => {
