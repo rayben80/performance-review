@@ -3,13 +3,10 @@ import { serveStatic } from 'hono/cloudflare-workers'
 
 const app = new Hono()
 
-// 정적 파일 서빙 - Cloudflare Pages 방식
-// public 폴더의 파일들을 /public/* 경로로 서빙
+// 정적 파일 서빙 - Cloudflare Pages 방식  
 app.use('/public/*', serveStatic({ root: './' }))
-
-// 루트 정적 파일들 (favicon.ico 등)
-app.use('/favicon.ico', serveStatic({ path: './favicon.ico' }))
-app.use('/robots.txt', serveStatic({ path: './robots.txt' }))
+app.use('/favicon.ico', serveStatic({ root: './public' }))
+app.use('/robots.txt', serveStatic({ root: './public' }))
 
 // API 라우트
 app.get('/api/health', (c) => {
@@ -324,6 +321,119 @@ app.delete('/api/organizations/:id', async (c) => {
   return c.json({ 
     success: true, 
     message: '조직이 삭제되었습니다.'
+  })
+})
+
+// 조직 구조 초기화 API (실제 클라우드사업본부 구조)
+app.post('/api/organizations/initialize', async (c) => {
+  const timestamp = new Date().toISOString()
+  
+  // 실제 클라우드사업본부 조직 구조
+  const cloudBusinessOrganizations = {
+    // Sales팀
+    'org_sales': {
+      id: 'org_sales',
+      name: 'Sales팀',
+      type: 'team',
+      parentId: null,
+      description: '영업 및 판매 업무를 담당하는 팀',
+      memberCount: 0,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    },
+    'org_sales_sales': {
+      id: 'org_sales_sales',
+      name: '영업',
+      type: 'part',
+      parentId: 'org_sales',
+      description: '신규 고객 발굴 및 영업 활동',
+      memberCount: 0,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    },
+    'org_sales_management': {
+      id: 'org_sales_management',
+      name: '영업관리',
+      type: 'part',
+      parentId: 'org_sales',
+      description: '영업 프로세스 관리 및 고객 관계 관리',
+      memberCount: 0,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    },
+    
+    // CX팀
+    'org_cx': {
+      id: 'org_cx',
+      name: 'CX팀',
+      type: 'team',
+      parentId: null,
+      description: '고객 경험 및 기술 지원을 담당하는 팀',
+      memberCount: 0,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    },
+    'org_cx_customer_service': {
+      id: 'org_cx_customer_service',
+      name: '고객서비스',
+      type: 'part',
+      parentId: 'org_cx',
+      description: '고객 문의 및 서비스 지원',
+      memberCount: 0,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    },
+    'org_cx_tech_support': {
+      id: 'org_cx_tech_support',
+      name: '기술지원',
+      type: 'part',
+      parentId: 'org_cx',
+      description: '기술적 문제 해결 및 지원',
+      memberCount: 0,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    },
+    'org_cx_tech_writing': {
+      id: 'org_cx_tech_writing',
+      name: 'Technical Writing',
+      type: 'part',
+      parentId: 'org_cx',
+      description: '기술 문서 작성 및 관리',
+      memberCount: 0,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    },
+    
+    // 사업운영
+    'org_business_ops': {
+      id: 'org_business_ops',
+      name: '사업운영',
+      type: 'team',
+      parentId: null,
+      description: '사업 전략 및 마케팅 업무를 담당하는 팀',
+      memberCount: 0,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    },
+    'org_business_ops_tech_marketing': {
+      id: 'org_business_ops_tech_marketing',
+      name: 'Technical Marketing',
+      type: 'part',
+      parentId: 'org_business_ops',
+      description: '기술 중심의 마케팅 전략 및 실행',
+      memberCount: 0,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    }
+  }
+  
+  // 기존 데이터 모두 삭제하고 새 구조로 교체
+  globalThis.organizationDatabase = JSON.stringify(cloudBusinessOrganizations)
+  
+  return c.json({ 
+    success: true, 
+    message: '클라우드사업본부 조직 구조가 성공적으로 초기화되었습니다.',
+    organizations: Object.values(cloudBusinessOrganizations)
   })
 })
 
@@ -925,7 +1035,7 @@ app.get('/dashboard', (c) => {
                             </li>
                             <li>
                                 <button onclick="showTab('systemSettings')" class="tab-button w-full text-left px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
-                                    <i class="fas fa-cog mr-3"></i>
+                                    <i class="fas fa-cogs mr-3"></i>
                                     시스템 설정
                                 </button>
                             </li>
@@ -1255,41 +1365,22 @@ app.get('/dashboard', (c) => {
                                         <h3 class="text-lg font-semibold text-gray-900">
                                             <i class="fas fa-sitemap text-blue-500 mr-2"></i>현재 조직 구조
                                         </h3>
-                                        <button onclick="refreshOrganization()" 
-                                                class="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition-colors">
-                                            <i class="fas fa-sync-alt mr-1"></i>새로고침
-                                        </button>
+                                        <div class="flex space-x-2">
+                                            <button onclick="initializeRealOrganization()" 
+                                                    class="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm hover:bg-green-200 transition-colors">
+                                                <i class="fas fa-sync mr-1"></i>실제 구조로 초기화
+                                            </button>
+                                            <button onclick="refreshOrganization()" 
+                                                    class="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition-colors">
+                                                <i class="fas fa-sync-alt mr-1"></i>새로고침
+                                            </button>
+                                        </div>
                                     </div>
                                     
                                     <div id="organizationTree" class="space-y-2">
-                                        <div class="p-4 bg-gray-50 rounded-lg">
-                                            <div class="flex items-center">
-                                                <i class="fas fa-building text-gray-600 mr-2"></i>
-                                                <span class="font-medium">클라우드사업본부</span>
-                                            </div>
-                                            <div class="ml-6 mt-2 space-y-1">
-                                                <div class="flex items-center text-sm text-gray-600">
-                                                    <i class="fas fa-users mr-2"></i>
-                                                    <span>개발1팀 (5명)</span>
-                                                    <button class="ml-2 text-blue-600 hover:text-blue-800">
-                                                        <i class="fas fa-edit text-xs"></i>
-                                                    </button>
-                                                </div>
-                                                <div class="flex items-center text-sm text-gray-600">
-                                                    <i class="fas fa-users mr-2"></i>
-                                                    <span>개발2팀 (3명)</span>
-                                                    <button class="ml-2 text-blue-600 hover:text-blue-800">
-                                                        <i class="fas fa-edit text-xs"></i>
-                                                    </button>
-                                                </div>
-                                                <div class="flex items-center text-sm text-gray-600">
-                                                    <i class="fas fa-users mr-2"></i>
-                                                    <span>인프라팀 (2명)</span>
-                                                    <button class="ml-2 text-blue-600 hover:text-blue-800">
-                                                        <i class="fas fa-edit text-xs"></i>
-                                                    </button>
-                                                </div>
-                                            </div>
+                                        <div class="text-center py-4 text-gray-500">
+                                            <i class="fas fa-spinner fa-spin text-xl mb-2"></i>
+                                            <p>조직 구조를 불러오는 중...</p>
                                         </div>
                                     </div>
                                 </div>
@@ -1319,8 +1410,7 @@ app.get('/dashboard', (c) => {
                                             <label class="block text-sm font-medium text-gray-700 mb-2">상위 조직</label>
                                             <select id="parentOrg" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                                                 <option value="">클라우드사업본부 (최상위)</option>
-                                                <option value="team1">개발1팀</option>
-                                                <option value="team2">개발2팀</option>
+                                                <!-- 동적으로 로드되는 옵션들 -->
                                             </select>
                                         </div>
                                         
@@ -2166,6 +2256,32 @@ app.get('/dashboard', (c) => {
                 });
             }
             
+            // 실제 클라우드사업본부 조직 구조로 초기화
+            async function initializeRealOrganization() {
+                if (!confirm('⚠️ 기존 조직 데이터를 모두 삭제하고 실제 클라우드사업본부 구조로 초기화하시겠습니까?\\n\\n초기화될 구조:\\n• Sales팀 (영업, 영업관리)\\n• CX팀 (고객서비스, 기술지원, Technical Writing)\\n• 사업운영 (Technical Marketing)')) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/api/organizations/initialize', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        alert('✅ ' + result.message + '\\n\\n총 ' + result.organizations.length + '개 조직이 생성되었습니다.');
+                        refreshOrganization(); // 조직도 새로고침
+                    } else {
+                        alert('❌ 초기화 실패: ' + result.message);
+                    }
+                } catch (error) {
+                    console.error('Organization initialization error:', error);
+                    alert('❌ 조직 구조 초기화 중 오류가 발생했습니다.');
+                }
+            }
+            
             // 조직 폼 제출 처리
             document.addEventListener('DOMContentLoaded', function() {
                 const orgForm = document.getElementById('organizationForm');
@@ -2494,22 +2610,71 @@ app.get('/dashboard', (c) => {
                 }
             }
 
-            // 탭 변경 감지하여 설정 탭일 때 데이터 로드
+            // 메인 탭 전환 함수 (핵심 기능)
             function showTab(tabName) {
-                // 기존 showTab 함수가 있다면 호출
-                if (window.originalShowTab) {
-                    window.originalShowTab(tabName);
+                console.log('showTab 호출됨:', tabName); // 디버깅용
+                
+                // 모든 탭 콘텐츠 숨기기
+                const allTabContents = document.querySelectorAll('.tab-content');
+                allTabContents.forEach(content => {
+                    content.classList.add('hidden');
+                    content.classList.remove('active');
+                });
+                
+                // 모든 탭 버튼 비활성화
+                const allTabButtons = document.querySelectorAll('.tab-button');
+                allTabButtons.forEach(button => {
+                    button.classList.remove('active');
+                    button.classList.remove('bg-gray-100', 'text-gray-900');
+                    button.classList.add('text-gray-600');
+                });
+                
+                // 선택된 탭 콘텐츠 표시
+                const targetContent = document.getElementById(tabName);
+                if (targetContent) {
+                    targetContent.classList.remove('hidden');
+                    targetContent.classList.add('active');
                 }
                 
-                // 설정 탭이면 데이터 로드
-                if (tabName === 'settings') {
-                    setTimeout(loadSettingsData, 100);
+                // 선택된 탭 버튼 활성화 (onclick에서 호출된 버튼 찾기)
+                const activeButton = event && event.target ? event.target.closest('button') : null;
+                if (activeButton) {
+                    activeButton.classList.add('active', 'bg-gray-100', 'text-gray-900');
+                    activeButton.classList.remove('text-gray-600');
                 }
                 
-                // 시스템 설정 탭이면 기본적으로 조직 설정 표시
-                if (tabName === 'systemSettings') {
-                    setTimeout(() => showSettingsTab('organization'), 100);
+                // 특별한 탭 처리
+                switch(tabName) {
+                    case 'dashboard':
+                        // 대시보드는 권한에 따라 다른 내용 표시
+                        const user = JSON.parse(localStorage.getItem('user') || '{}');
+                        const dashboardContent = document.getElementById('dashboard');
+                        if (dashboardContent && user.role === 'admin') {
+                            const adminDashboard = document.getElementById('adminDashboard');
+                            if (adminDashboard) {
+                                dashboardContent.innerHTML = adminDashboard.innerHTML;
+                                loadAdminDashboardData();
+                            }
+                        } else if (dashboardContent) {
+                            const userDashboard = document.getElementById('userDashboard');
+                            if (userDashboard) {
+                                dashboardContent.innerHTML = userDashboard.innerHTML;
+                                loadUserDashboardData();
+                            }
+                        }
+                        break;
+                        
+                    case 'settings':
+                        setTimeout(loadSettingsData, 100);
+                        break;
+                        
+                    case 'systemSettings':
+                        // 시스템 설정은 기본적으로 조직 설정 탭 표시
+                        setTimeout(() => showSettingsTab('organization'), 100);
+                        break;
                 }
+                
+                console.log('탭 전환 완료:', tabName); // 디버깅용
             }
         </script>
 
