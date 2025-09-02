@@ -69,7 +69,7 @@
 ## 🧪 테스트 계정 정보
 
 ### 기본 테스트 계정
-- **관리자**: admin@company.com / admin123
+- **관리자**: rayben@forcs.com / admin123
 - **일반 사용자**: user@company.com / user123  
 - **관리자겸사용자**: test@company.com / test123 (팀장 역할)
 - **팀장**: manager@company.com / manager123 (관리 권한 + 평가 대상자)
