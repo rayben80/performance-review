@@ -871,51 +871,7 @@ app.post('/api/organizations/initialize', async (c) => {
   })
 })
 
-// 평가 항목 관련 API
-// 평가 항목 조회 (정량/정성)
-app.get('/api/evaluation-items', async (c) => {
-  const evaluationItems = JSON.parse(globalThis.evaluationItemsDatabase || '{}')
-  
-  const quantitative = evaluationItems.quantitative || [
-    { id: 'q1', name: '목표 달성률', description: '개인 목표 대비 달성 비율 (%)', weight: 40, type: 'percentage' },
-    { id: 'q2', name: 'KPI 성과', description: '핵심성과지표 달성도 (1-5점)', weight: 35, type: 'rating' },
-    { id: 'q3', name: '프로젝트 기여도', description: '프로젝트 성공도 및 기여 수준', weight: 25, type: 'rating' }
-  ]
-  
-  const qualitative = evaluationItems.qualitative || [
-    { id: 'ql1', name: '리더십', description: '팀을 이끄는 능력과 영향력', scale: '1-5점' },
-    { id: 'ql2', name: '의사소통', description: '명확하고 효과적인 커뮤니케이션', scale: '1-5점' },
-    { id: 'ql3', name: '전문성', description: '직무 관련 지식과 기술 수준', scale: '1-5점' },
-    { id: 'ql4', name: '협업 능력', description: '팀워크와 상호 협력 정도', scale: '1-5점' }
-  ]
-  
-  return c.json({ 
-    success: true, 
-    evaluationItems: {
-      quantitative,
-      qualitative
-    }
-  })
-})
 
-// 평가 항목 저장
-app.post('/api/evaluation-items', async (c) => {
-  const { quantitative, qualitative } = await c.req.json()
-  
-  const evaluationItems = {
-    quantitative: quantitative || [],
-    qualitative: qualitative || [],
-    updatedAt: new Date().toISOString()
-  }
-  
-  globalThis.evaluationItemsDatabase = JSON.stringify(evaluationItems)
-  
-  return c.json({ 
-    success: true, 
-    message: '평가 항목이 저장되었습니다.',
-    evaluationItems
-  })
-})
 
 // 고도화된 사용자 관리 API
 
@@ -2548,7 +2504,7 @@ app.get('/dashboard', (c) => {
                                             <div>
                                                 <h3 class="text-lg font-semibold text-blue-900">정량평가 항목</h3>
                                                 <p class="text-3xl font-bold text-blue-600 mt-2" id="quantitativeCount">3</p>
-                                                <p class="text-sm text-blue-700">총 가중치: <span id="quantitativeWeight">100%</span></p>
+                                                <p class="text-sm text-blue-700">총 배점: <span id="quantitativePoints">0점</span></p>
                                             </div>
                                             <i class="fas fa-chart-bar text-blue-400 text-3xl"></i>
                                         </div>
@@ -4889,28 +4845,79 @@ app.get('/dashboard', (c) => {
         }
 
         // 대시보드 통계 업데이트
-        function updateDashboardStats() {
+        async function updateDashboardStats() {
             try {
-                const quantCount = Object.keys(quantitativeItems).length || 3;
-                const qualCount = Object.keys(qualitativeItems).length || 4;
-                const assignCount = Object.keys(evaluationTargets).length || 2;
+                console.log('🔄 평가 대시보드 통계 업데이트 시작...');
                 
+                // 새 API에서 통계 데이터 가져오기
+                const response = await fetch('/api/evaluation-items/stats');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const stats = result.stats;
+                    console.log('📊 평가 통계 데이터:', stats);
+                    
+                    // 정량평가 통계 업데이트
+                    const quantEl = document.getElementById('quantitativeCount');
+                    const quantPointsEl = document.getElementById('quantitativePoints');
+                    if (quantEl) quantEl.textContent = stats.byType.quantitative;
+                    if (quantPointsEl) quantPointsEl.textContent = stats.totalPoints + '점';
+                    
+                    // 정성평가 통계 업데이트
+                    const qualEl = document.getElementById('qualitativeCount');
+                    if (qualEl) qualEl.textContent = stats.byType.qualitative;
+                    
+                    // 전체 통계 업데이트
+                    const totalEl = document.getElementById('totalEvaluationItems');
+                    if (totalEl) totalEl.textContent = stats.total;
+                    
+                    // 배정 통계는 기존 유지 (나중에 개발 예정)
+                    const assignEl = document.getElementById('assignmentCount');
+                    if (assignEl) assignEl.textContent = '0'; // TODO: 배정 API 연동
+                    
+                    console.log('✅ 평가 대시보드 통계 업데이트 완료');
+                } else {
+                    console.error('❌ 평가 통계 조회 실패:', result.message);
+                    // 기본값으로 설정
+                    const quantEl = document.getElementById('quantitativeCount');
+                    const qualEl = document.getElementById('qualitativeCount');
+                    const quantPointsEl = document.getElementById('quantitativePoints');
+                    if (quantEl) quantEl.textContent = '0';
+                    if (qualEl) qualEl.textContent = '0';
+                    if (quantPointsEl) quantPointsEl.textContent = '0점';
+                }
+            } catch (error) {
+                console.error('❌ 평가 대시보드 통계 업데이트 오류:', error);
+                // 기본값으로 설정
                 const quantEl = document.getElementById('quantitativeCount');
                 const qualEl = document.getElementById('qualitativeCount');
-                const assignEl = document.getElementById('assignmentCount');
-                const weightEl = document.getElementById('quantitativeWeight');
-                
-                if (quantEl) quantEl.textContent = quantCount;
-                if (qualEl) qualEl.textContent = qualCount;
-                if (assignEl) assignEl.textContent = assignCount;
-                
-                const totalWeight = Object.values(quantitativeItems).reduce((sum, item) => sum + (item.weight || 0), 0) || 100;
-                if (weightEl) weightEl.textContent = totalWeight + '%';
-                
-                console.log('✅ 대시보드 통계 업데이트 완료');
-            } catch (error) {
-                console.error('❌ 대시보드 통계 업데이트 오류:', error);
+                const quantPointsEl = document.getElementById('quantitativePoints');
+                if (quantEl) quantEl.textContent = '0';
+                if (qualEl) qualEl.textContent = '0';
+                if (quantPointsEl) quantPointsEl.textContent = '0점';
             }
+        }
+
+        // 주기 라벨 변환 함수
+        function getPeriodLabel(period) {
+            const labels = {
+                'monthly': '월별',
+                'quarterly': '분기별',
+                'semi-annual': '반기별',
+                'annual': '연간'
+            };
+            return labels[period] || period;
+        }
+
+        // 적용 범위 라벨 변환 함수
+        function getScopeLabel(scope) {
+            const labels = {
+                'individual': '개인',
+                'part': '파트',
+                'team': '팀',
+                'department': '본부'
+            };
+            return labels[scope] || scope;
         }
 
         // 평가 항목 그리드 로드
@@ -4919,7 +4926,7 @@ app.get('/dashboard', (c) => {
             loadQualitativeGrid();
         }
 
-        function loadQuantitativeGrid() {
+        async function loadQuantitativeGrid() {
             try {
                 const container = document.getElementById('quantitativeItemsGrid');
                 if (!container) {
@@ -4927,89 +4934,184 @@ app.get('/dashboard', (c) => {
                     return;
                 }
                 
-                const defaultItems = [
-                    { id: 'goal_achievement', name: '목표 달성률', description: '개인 목표 대비 달성 비율 (%)', weight: 40 },
-                    { id: 'kpi_performance', name: 'KPI 성과', description: '핵심성과지표 달성도 (1-5점)', weight: 35 },
-                    { id: 'project_contribution', name: '프로젝트 기여도', description: '프로젝트 성공도 및 기여 수준', weight: 25 }
-                ];
+                // 로딩 상태 표시
+                container.innerHTML = \`
+                    <div class="text-center py-8">
+                        <i class="fas fa-spinner fa-spin text-2xl text-gray-400 mb-2"></i>
+                        <p class="text-gray-500">정량평가 항목을 불러오는 중...</p>
+                    </div>
+                \`;
                 
-                const items = Object.keys(quantitativeItems).length > 0 ? 
-                    Object.values(quantitativeItems) : defaultItems;
-            
-            container.innerHTML = items.map(item => \`
-                <div class="evaluation-item-card bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
-                    <div class="flex items-start justify-between">
-                        <div class="flex-1">
-                            <div class="flex items-center space-x-2 mb-2">
-                                <h5 class="font-semibold text-gray-900">\${item.name}</h5>
-                                <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">가중치: \${item.weight}%</span>
-                            </div>
-                            <p class="text-sm text-gray-600">\${item.description}</p>
+                // API에서 데이터 가져오기
+                const response = await fetch('/api/evaluation-items');
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.message || '데이터를 불러올 수 없습니다.');
+                }
+                
+                // 정량평가 항목만 필터링
+                const quantitativeItems = data.items.filter(item => item.type === 'quantitative');
+                
+                if (quantitativeItems.length === 0) {
+                    container.innerHTML = \`
+                        <div class="text-center py-8">
+                            <i class="fas fa-chart-bar text-4xl text-gray-300 mb-4"></i>
+                            <p class="text-gray-500 mb-4">등록된 정량평가 항목이 없습니다</p>
+                            <button onclick="quickAddQuantitativeItem()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                <i class="fas fa-plus mr-2"></i>첫 항목 추가하기
+                            </button>
                         </div>
-                        <div class="flex items-center space-x-1 ml-3">
-                            <button onclick="quickEditItem('quantitative', '\${item.id}')" 
-                                    class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
-                                    title="편집">
-                                <i class="fas fa-edit text-sm"></i>
-                            </button>
-                            <button onclick="duplicateItem('quantitative', '\${item.id}')" 
-                                    class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" 
-                                    title="복사">
-                                <i class="fas fa-copy text-sm"></i>
-                            </button>
-                            <button onclick="deleteEvaluationItem('quantitative', '\${item.id}')" 
-                                    class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" 
-                                    title="삭제">
-                                <i class="fas fa-trash text-sm"></i>
-                            </button>
+                    \`;
+                    return;
+                }
+                
+                const items = quantitativeItems;
+            
+                container.innerHTML = items.map(item => \`
+                    <div class="evaluation-item-card bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center space-x-2 mb-2">
+                                    <h5 class="font-semibold text-gray-900">\${item.name}</h5>
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">배점: \${item.points}점</span>
+                                    <span class="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">\${getPeriodLabel(item.period)}</span>
+                                </div>
+                                <p class="text-sm text-gray-600 mb-2">\${item.description}</p>
+                                <div class="text-xs text-gray-500">
+                                    <div class="mb-1"><strong>직장 가이드:</strong> \${item.guide}</div>
+                                    <div><strong>점수 기준:</strong> \${item.scoreStandard}</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-1 ml-3">
+                                <button onclick="editEvaluationItem('\${item.id}')" 
+                                        class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
+                                        title="편집">
+                                    <i class="fas fa-edit text-sm"></i>
+                                </button>
+                                <button onclick="duplicateEvaluationItem('\${item.id}')" 
+                                        class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" 
+                                        title="복사">
+                                    <i class="fas fa-copy text-sm"></i>
+                                </button>
+                                <button onclick="deleteEvaluationItem('\${item.id}')" 
+                                        class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" 
+                                        title="삭제">
+                                    <i class="fas fa-trash text-sm"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            \`).join('');
+                \`).join('');
+                
+            } catch (error) {
+                console.error('❌ 정량평가 항목 로드 실패:', error);
+                const container = document.getElementById('quantitativeItemsGrid');
+                if (container) {
+                    container.innerHTML = \`
+                        <div class="text-center py-8">
+                            <i class="fas fa-exclamation-triangle text-4xl text-red-300 mb-4"></i>
+                            <p class="text-red-500 mb-4">항목을 불러오는데 실패했습니다</p>
+                            <button onclick="loadQuantitativeGrid()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                                <i class="fas fa-redo mr-2"></i>다시 시도
+                            </button>
+                        </div>
+                    \`;
+                }
+            }
         }
 
-        function loadQualitativeGrid() {
-            const container = document.getElementById('qualitativeItemsGrid');
-            const defaultItems = [
-                { id: 'leadership', name: '리더십', description: '팀을 이끄는 능력과 영향력', scale: '1-5' },
-                { id: 'communication', name: '의사소통', description: '명확하고 효과적인 커뮤니케이션', scale: '1-5' },
-                { id: 'expertise', name: '전문성', description: '직무 관련 지식과 기술 수준', scale: '1-5' },
-                { id: 'collaboration', name: '협업 능력', description: '팀워크와 상호 협력 정도', scale: '1-5' }
-            ];
-            
-            const items = Object.keys(qualitativeItems).length > 0 ? 
-                Object.values(qualitativeItems) : defaultItems;
-            
-            container.innerHTML = items.map(item => \`
-                <div class="evaluation-item-card bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
-                    <div class="flex items-start justify-between">
-                        <div class="flex-1">
-                            <div class="flex items-center space-x-2 mb-2">
-                                <h5 class="font-semibold text-gray-900">\${item.name}</h5>
-                                <span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">\${item.scale}</span>
-                            </div>
-                            <p class="text-sm text-gray-600">\${item.description}</p>
+        async function loadQualitativeGrid() {
+            try {
+                const container = document.getElementById('qualitativeItemsGrid');
+                if (!container) {
+                    console.log('⚠️ qualitativeItemsGrid 요소를 찾을 수 없음');
+                    return;
+                }
+                
+                // 로딩 상태 표시
+                container.innerHTML = \`
+                    <div class="text-center py-8">
+                        <i class="fas fa-spinner fa-spin text-2xl text-gray-400 mb-2"></i>
+                        <p class="text-gray-500">정성평가 항목을 불러오는 중...</p>
+                    </div>
+                \`;
+                
+                // API에서 데이터 가져오기
+                const response = await fetch('/api/evaluation-items');
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.message || '데이터를 불러올 수 없습니다.');
+                }
+                
+                // 정성평가 항목만 필터링
+                const qualitativeItems = data.items.filter(item => item.type === 'qualitative');
+                
+                if (qualitativeItems.length === 0) {
+                    container.innerHTML = \`
+                        <div class="text-center py-8">
+                            <i class="fas fa-comments text-4xl text-gray-300 mb-4"></i>
+                            <p class="text-gray-500 mb-4">등록된 정성평가 항목이 없습니다</p>
+                            <button onclick="quickAddQualitativeItem()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                                <i class="fas fa-plus mr-2"></i>첫 항목 추가하기
+                            </button>
                         </div>
-                        <div class="flex items-center space-x-1 ml-3">
-                            <button onclick="quickEditItem('qualitative', '\${item.id}')" 
-                                    class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
-                                    title="편집">
-                                <i class="fas fa-edit text-sm"></i>
-                            </button>
-                            <button onclick="duplicateItem('qualitative', '\${item.id}')" 
-                                    class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" 
-                                    title="복사">
-                                <i class="fas fa-copy text-sm"></i>
-                            </button>
-                            <button onclick="deleteEvaluationItem('qualitative', '\${item.id}')" 
-                                    class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" 
-                                    title="삭제">
-                                <i class="fas fa-trash text-sm"></i>
-                            </button>
+                    \`;
+                    return;
+                }
+                
+                container.innerHTML = qualitativeItems.map(item => \`
+                    <div class="evaluation-item-card bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center space-x-2 mb-2">
+                                    <h5 class="font-semibold text-gray-900">\${item.name}</h5>
+                                    <span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">배점: \${item.points}점</span>
+                                    <span class="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">\${getPeriodLabel(item.period)}</span>
+                                </div>
+                                <p class="text-sm text-gray-600 mb-2">\${item.description}</p>
+                                <div class="text-xs text-gray-500">
+                                    <div class="mb-1"><strong>직장 가이드:</strong> \${item.guide}</div>
+                                    <div><strong>점수 기준:</strong> \${item.scoreStandard}</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-1 ml-3">
+                                <button onclick="editEvaluationItem('\${item.id}')" 
+                                        class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
+                                        title="편집">
+                                    <i class="fas fa-edit text-sm"></i>
+                                </button>
+                                <button onclick="duplicateEvaluationItem('\${item.id}')" 
+                                        class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" 
+                                        title="복사">
+                                    <i class="fas fa-copy text-sm"></i>
+                                </button>
+                                <button onclick="deleteEvaluationItem('\${item.id}')" 
+                                        class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" 
+                                        title="삭제">
+                                    <i class="fas fa-trash text-sm"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            \`).join('');
+                \`).join('');
+                
+            } catch (error) {
+                console.error('❌ 정성평가 항목 로드 실패:', error);
+                const container = document.getElementById('qualitativeItemsGrid');
+                if (container) {
+                    container.innerHTML = \`
+                        <div class="text-center py-8">
+                            <i class="fas fa-exclamation-triangle text-4xl text-red-300 mb-4"></i>
+                            <p class="text-red-500 mb-4">항목을 불러오는데 실패했습니다</p>
+                            <button onclick="loadQualitativeGrid()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                                <i class="fas fa-redo mr-2"></i>다시 시도
+                            </button>
+                        </div>
+                    \`;
+                }
+            }
         }
 
         // 평가 항목 등록 마법사
@@ -5167,7 +5269,7 @@ app.get('/dashboard', (c) => {
                 summaryHtml += \`
                     <div class="grid grid-cols-2 gap-4">
                         <div class="bg-white p-4 rounded-lg border">
-                            <h6 class="font-medium text-gray-900 mb-2">가중치</h6>
+                            <h6 class="font-medium text-gray-900 mb-2">배점</h6>
                             <p class="text-2xl font-bold text-blue-600">\${currentWizardData.weight}%</p>
                         </div>
                         <div class="bg-white p-4 rounded-lg border">
@@ -5220,53 +5322,173 @@ app.get('/dashboard', (c) => {
 
         // 빠른 추가 기능들
         function quickAddQuantitativeItem() {
+            // 🔍 디버깅: 새로운 함수가 호출되는지 확인
+            alert('새로운 quickAddQuantitativeItem 함수 호출됨!');
+            console.log('🚀 새로운 quickAddQuantitativeItem 함수 실행');
+            
+            // 타입 및 기본값 설정
             document.getElementById('quickAddType').value = 'quantitative';
             document.getElementById('quickAddItemId').value = '';
+            
+            // 헤더 업데이트
             document.getElementById('quickAddTitle').textContent = '정량평가 항목 빠른 추가';
+            document.getElementById('quickAddSubtitle').textContent = '수치로 측정 가능한 평가 항목을 생성합니다';
+            
+            // 폼 초기화
             document.getElementById('quickAddName').value = '';
+            document.getElementById('quickAddCategory').value = '';
             document.getElementById('quickAddDescription').value = '';
-            document.getElementById('quickAddWeight').value = '20';
-            document.getElementById('quickAddWeightSection').style.display = 'block';
-            document.getElementById('quickAddScaleSection').style.display = 'none';
-            document.getElementById('quickAddModal').classList.remove('hidden');
-            document.getElementById('quickAddModal').classList.add('flex');
+            document.getElementById('quickAddPoints').value = '30';
+            document.getElementById('quickAddPeriod').value = 'monthly';
+            document.getElementById('quickAddScope').value = 'individual';
+            document.getElementById('quickAddGuide').value = '';
+            document.getElementById('quickAddScoreStandard').value = '';
+            
+            // 프로그레스 바 초기화
+            document.getElementById('quickAddProgressBar').style.width = '0%';
+            
+            // 필드 표시/숨김 설정
+            document.getElementById('quickAddPointsSection').style.display = 'block';
+            document.getElementById('quickAddScaleSection').classList.add('hidden');
+            
+            // 정량평가 기본 예시 설정
+            document.getElementById('quickAddName').placeholder = '예: 월별 매출 달성률, KPI 달성도';
+            document.getElementById('quickAddCategory').placeholder = '예: 매출 성과, 업무 효율성';
+            document.getElementById('quickAddGuide').placeholder = '예: 월별 매출 목표 대비 달성률을 측정합니다. 계획 대비 100% 이상 달성 시 만점 처리';
+            document.getElementById('quickAddScoreStandard').placeholder = '예: 30점: 110% 이상 달성\\n25점: 100-109% 달성\\n20점: 90-99% 달성\\n15점: 80-89% 달성\\n10점: 70-79% 달성\\n5점: 60-69% 달성\\n0점: 60% 미만';
+            
+            // 유효성 검사 피드백 초기화
+            clearFormValidation();
+            
+            // 모달 표시 with 애니메이션
+            const modal = document.getElementById('quickAddModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            // 애니메이션 트리거
+            setTimeout(() => {
+                modal.querySelector('.animate-slideUp').style.transform = 'translateY(0) scale(1)';
+            }, 10);
+            
+            // 첫 번째 필드에 포커스
+            setTimeout(() => {
+                const nameField = document.getElementById('quickAddName');
+                nameField.focus();
+                // 포커스 애니메이션
+                nameField.classList.add('ring-2', 'ring-blue-500');
+                setTimeout(() => {
+                    nameField.classList.remove('ring-2', 'ring-blue-500');
+                }, 1000);
+            }, 100);
         }
 
         function quickAddQualitativeItem() {
+            // 타입 및 기본값 설정
             document.getElementById('quickAddType').value = 'qualitative';
             document.getElementById('quickAddItemId').value = '';
+            
+            // 헤더 업데이트
             document.getElementById('quickAddTitle').textContent = '정성평가 항목 빠른 추가';
+            document.getElementById('quickAddSubtitle').textContent = '주관적 판단이 필요한 평가 항목을 생성합니다';
+            
+            // 폼 초기화
             document.getElementById('quickAddName').value = '';
+            document.getElementById('quickAddCategory').value = '';
             document.getElementById('quickAddDescription').value = '';
+            document.getElementById('quickAddPoints').value = '4';
+            document.getElementById('quickAddPeriod').value = 'quarterly';
+            document.getElementById('quickAddScope').value = 'individual';
+            document.getElementById('quickAddGuide').value = '';
+            document.getElementById('quickAddScoreStandard').value = '';
             document.getElementById('quickAddScale').value = '1-5';
-            document.getElementById('quickAddWeightSection').style.display = 'none';
-            document.getElementById('quickAddScaleSection').style.display = 'block';
-            document.getElementById('quickAddModal').classList.remove('hidden');
-            document.getElementById('quickAddModal').classList.add('flex');
+            
+            // 필드 표시/숨김 설정
+            document.getElementById('quickAddPointsSection').style.display = 'block';
+            document.getElementById('quickAddScaleSection').classList.remove('hidden');
+            
+            // 정성평가 기본 예시 설정
+            document.getElementById('quickAddName').placeholder = '예: 리더십, 커뮤니케이션 능력';
+            document.getElementById('quickAddCategory').placeholder = '예: 역량 평가, 태도 평가';
+            document.getElementById('quickAddGuide').placeholder = '예: 팀원들을 효과적으로 이끌고 목표 달성을 위해 동기부여하는 능력을 평가합니다';
+            document.getElementById('quickAddScoreStandard').placeholder = '예: 4점: 탁월함 (팀 성과 향상에 큰 기여)\\n3점: 우수함 (안정적인 팀 리더십)\\n2점: 보통 (기본적인 리더십 발휘)\\n1점: 미흡함 (리더십 개발 필요)';
+            
+            // 유효성 검사 피드백 초기화
+            clearFormValidation();
+            
+            // 모달 표시 with 애니메이션
+            const modal = document.getElementById('quickAddModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            // 애니메이션 트리거
+            setTimeout(() => {
+                modal.querySelector('.animate-slideUp').style.transform = 'translateY(0) scale(1)';
+            }, 10);
+            
+            // 첫 번째 필드에 포커스
+            setTimeout(() => {
+                const nameField = document.getElementById('quickAddName');
+                nameField.focus();
+                // 포커스 애니메이션
+                nameField.classList.add('ring-2', 'ring-blue-500');
+                setTimeout(() => {
+                    nameField.classList.remove('ring-2', 'ring-blue-500');
+                }, 1000);
+            }, 100);
         }
 
-        function quickEditItem(type, itemId) {
-            const items = type === 'quantitative' ? quantitativeItems : qualitativeItems;
-            const item = items[itemId] || getDefaultItem(type, itemId);
-            
-            document.getElementById('quickAddType').value = type;
-            document.getElementById('quickAddItemId').value = itemId;
-            document.getElementById('quickAddTitle').textContent = \`\${type === 'quantitative' ? '정량' : '정성'}평가 항목 편집\`;
-            document.getElementById('quickAddName').value = item.name || '';
-            document.getElementById('quickAddDescription').value = item.description || '';
-            
-            if (type === 'quantitative') {
-                document.getElementById('quickAddWeight').value = item.weight || 20;
-                document.getElementById('quickAddWeightSection').style.display = 'block';
-                document.getElementById('quickAddScaleSection').style.display = 'none';
-            } else {
-                document.getElementById('quickAddScale').value = item.scale || '1-5';
-                document.getElementById('quickAddWeightSection').style.display = 'none';
-                document.getElementById('quickAddScaleSection').style.display = 'block';
+        async function quickEditItem(type, itemId) {
+            try {
+                // API에서 실제 데이터 가져오기
+                const response = await fetch(\`/api/evaluation-items/\${itemId}\`);
+                const result = await response.json();
+                
+                let item;
+                if (result.success) {
+                    item = result.item;
+                } else {
+                    console.warn('항목을 찾을 수 없어 기본값 사용');
+                    item = {
+                        name: '',
+                        category: '',
+                        description: '',
+                        points: type === 'quantitative' ? 30 : 4,
+                        period: type === 'quantitative' ? 'monthly' : 'quarterly',
+                        scope: 'individual',
+                        guide: '',
+                        scoreStandard: ''
+                    };
+                }
+                
+                // 모달 폼 채우기
+                document.getElementById('quickAddType').value = type;
+                document.getElementById('quickAddItemId').value = itemId;
+                document.getElementById('quickAddTitle').textContent = \`\${type === 'quantitative' ? '정량' : '정성'}평가 항목 편집\`;
+                document.getElementById('quickAddName').value = item.name || '';
+                document.getElementById('quickAddCategory').value = item.category || '';
+                document.getElementById('quickAddDescription').value = item.description || '';
+                document.getElementById('quickAddPoints').value = item.points || (type === 'quantitative' ? 30 : 4);
+                document.getElementById('quickAddPeriod').value = item.period || (type === 'quantitative' ? 'monthly' : 'quarterly');
+                document.getElementById('quickAddScope').value = item.scope || 'individual';
+                document.getElementById('quickAddGuide').value = item.guide || '';
+                document.getElementById('quickAddScoreStandard').value = item.scoreStandard || '';
+                
+                // 타입별 필드 표시/숨김
+                if (type === 'quantitative') {
+                    document.getElementById('quickAddPointsSection').style.display = 'block';
+                    document.getElementById('quickAddScaleSection').style.display = 'none';
+                } else {
+                    document.getElementById('quickAddPointsSection').style.display = 'block';
+                    document.getElementById('quickAddScaleSection').style.display = 'block';
+                    document.getElementById('quickAddScale').value = item.scale || '1-5';
+                }
+                
+                // 모달 표시
+                document.getElementById('quickAddModal').classList.remove('hidden');
+                document.getElementById('quickAddModal').classList.add('flex');
+                
+            } catch (error) {
+                console.error('편집 데이터 로드 오류:', error);
+                alert('항목 데이터를 불러오는 중 오류가 발생했습니다.');
             }
-            
-            document.getElementById('quickAddModal').classList.remove('hidden');
-            document.getElementById('quickAddModal').classList.add('flex');
         }
 
         function duplicateItem(type, itemId) {
@@ -5313,44 +5535,303 @@ app.get('/dashboard', (c) => {
         }
 
         function closeQuickAddModal() {
-            document.getElementById('quickAddModal').classList.add('hidden');
-            document.getElementById('quickAddModal').classList.remove('flex');
+            const modal = document.getElementById('quickAddModal');
+            // 페이드 아웃 애니메이션
+            modal.style.animation = 'fadeOut 0.3s ease-out';
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                modal.style.animation = '';
+                clearFormValidation();
+                // 프로그레스 바 초기화
+                document.getElementById('quickAddProgressBar').style.width = '0%';
+            }, 300);
+        }
+        
+        // 🎯 실시간 프로그레스 업데이트 함수
+        function updateFormProgress() {
+            const fields = [
+                'quickAddName',
+                'quickAddCategory', 
+                'quickAddDescription',
+                'quickAddGuide',
+                'quickAddScoreStandard'
+            ];
+            
+            let filledCount = 0;
+            fields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field && field.value.trim()) {
+                    filledCount++;
+                    // 체크 아이콘 표시
+                    const checkIcon = document.getElementById(fieldId + 'Check');
+                    if (checkIcon && !checkIcon.classList.contains('check-icon-appear')) {
+                        checkIcon.classList.remove('hidden');
+                        checkIcon.classList.add('check-icon-appear');
+                    }
+                } else {
+                    // 체크 아이콘 숨김
+                    const checkIcon = document.getElementById(fieldId + 'Check');
+                    if (checkIcon) {
+                        checkIcon.classList.add('hidden');
+                        checkIcon.classList.remove('check-icon-appear');
+                    }
+                }
+            });
+            
+            // 프로그레스 바 업데이트
+            const progress = (filledCount / fields.length) * 100;
+            const progressBar = document.getElementById('quickAddProgressBar');
+            if (progressBar) {
+                progressBar.style.width = progress + '%';
+                if (progress === 100) {
+                    progressBar.classList.add('progress-shimmer');
+                } else {
+                    progressBar.classList.remove('progress-shimmer');
+                }
+            }
+            
+            // 제출 버튼 상태 업데이트
+            const submitBtn = document.getElementById('quickAddSubmitBtn');
+            if (submitBtn) {
+                if (progress === 100) {
+                    submitBtn.classList.remove('opacity-75');
+                    submitBtn.classList.add('hover:scale-105');
+                } else {
+                    submitBtn.classList.add('opacity-75');
+                    submitBtn.classList.remove('hover:scale-105');
+                }
+            }
+        }
+        
+        // 🎯 실시간 유효성 검사 및 피드백 함수들
+        function clearFormValidation() {
+            const fields = ['quickAddName', 'quickAddCategory', 'quickAddDescription', 'quickAddPoints', 'quickAddGuide', 'quickAddScoreStandard'];
+            fields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                const feedback = document.getElementById(fieldId + 'Feedback');
+                if (field) {
+                    field.classList.remove('field-valid', 'field-invalid');
+                }
+                if (feedback) {
+                    feedback.classList.add('hidden');
+                    feedback.textContent = '';
+                }
+            });
+        }
+        
+        function validateField(fieldId, value, rules = {}) {
+            const field = document.getElementById(fieldId);
+            const feedback = document.getElementById(fieldId + 'Feedback');
+            
+            if (!field) return true;
+            
+            let isValid = true;
+            let message = '';
+            
+            // 필수 필드 검증
+            if (rules.required && (!value || value.trim() === '')) {
+                isValid = false;
+                message = '필수 입력 항목입니다';
+            }
+            // 길이 검증
+            else if (rules.minLength && value.length < rules.minLength) {
+                isValid = false;
+                message = \`최소 \${rules.minLength}자 이상 입력해주세요\`;
+            }
+            else if (rules.maxLength && value.length > rules.maxLength) {
+                isValid = false;
+                message = \`최대 \${rules.maxLength}자까지 입력 가능합니다\`;
+            }
+            // 숫자 범위 검증
+            else if (rules.min && parseInt(value) < rules.min) {
+                isValid = false;
+                message = \`\${rules.min} 이상의 값을 입력해주세요\`;
+            }
+            else if (rules.max && parseInt(value) > rules.max) {
+                isValid = false;
+                message = \`\${rules.max} 이하의 값을 입력해주세요\`;
+            }
+            
+            // UI 업데이트
+            if (isValid && value.trim() !== '') {
+                field.classList.remove('field-invalid');
+                field.classList.add('field-valid');
+                if (feedback) {
+                    feedback.classList.add('hidden');
+                }
+            } else if (!isValid) {
+                field.classList.remove('field-valid');
+                field.classList.add('field-invalid');
+                if (feedback) {
+                    feedback.textContent = message;
+                    feedback.classList.remove('hidden');
+                    feedback.className = 'text-xs text-red-500 mt-1';
+                }
+            } else {
+                field.classList.remove('field-valid', 'field-invalid');
+                if (feedback) {
+                    feedback.classList.add('hidden');
+                }
+            }
+            
+            return isValid;
+        }
+        
+        function setupRealTimeValidation() {
+            // 항목명 검증
+            document.getElementById('quickAddName')?.addEventListener('input', function(e) {
+                validateField('quickAddName', e.target.value, { required: true, minLength: 2, maxLength: 100 });
+            });
+            
+            // 카테고리 검증
+            document.getElementById('quickAddCategory')?.addEventListener('input', function(e) {
+                validateField('quickAddCategory', e.target.value, { required: true, minLength: 2, maxLength: 50 });
+            });
+            
+            // 설명 검증
+            document.getElementById('quickAddDescription')?.addEventListener('input', function(e) {
+                validateField('quickAddDescription', e.target.value, { required: true, minLength: 10, maxLength: 500 });
+            });
+            
+            // 배점 검증
+            document.getElementById('quickAddPoints')?.addEventListener('input', function(e) {
+                validateField('quickAddPoints', e.target.value, { required: true, min: 1, max: 100 });
+            });
+            
+            // 가이드 검증
+            document.getElementById('quickAddGuide')?.addEventListener('input', function(e) {
+                validateField('quickAddGuide', e.target.value, { required: true, minLength: 10, maxLength: 500 });
+            });
+            
+            // 점수 기준 검증
+            document.getElementById('quickAddScoreStandard')?.addEventListener('input', function(e) {
+                validateField('quickAddScoreStandard', e.target.value, { required: true, minLength: 20, maxLength: 1000 });
+            });
+        }
+        
+        function validateForm() {
+            const validations = [
+                validateField('quickAddName', document.getElementById('quickAddName').value, { required: true, minLength: 2, maxLength: 100 }),
+                validateField('quickAddCategory', document.getElementById('quickAddCategory').value, { required: true, minLength: 2, maxLength: 50 }),
+                validateField('quickAddDescription', document.getElementById('quickAddDescription').value, { required: true, minLength: 10, maxLength: 500 }),
+                validateField('quickAddPoints', document.getElementById('quickAddPoints').value, { required: true, min: 1, max: 100 }),
+                validateField('quickAddGuide', document.getElementById('quickAddGuide').value, { required: true, minLength: 10, maxLength: 500 }),
+                validateField('quickAddScoreStandard', document.getElementById('quickAddScoreStandard').value, { required: true, minLength: 20, maxLength: 1000 })
+            ];
+            
+            return validations.every(v => v === true);
         }
 
-        // 빠른 추가 폼 제출
-        document.getElementById('quickAddForm').addEventListener('submit', function(e) {
+        // 🚀 향상된 빠른 추가 폼 제출 (새 API 연동 + 유효성 검사)
+        document.getElementById('quickAddForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const type = document.getElementById('quickAddType').value;
-            const itemId = document.getElementById('quickAddItemId').value || 'item_' + Date.now();
-            const name = document.getElementById('quickAddName').value;
-            const description = document.getElementById('quickAddDescription').value;
-
-            if (!name || !description) {
-                alert('항목명과 설명을 모두 입력해주세요.');
+            // 유효성 검사 먼저 수행
+            if (!validateForm()) {
+                showNotification('입력값을 확인해주세요. 빨간색으로 표시된 필드를 수정해주세요.', 'error');
                 return;
             }
-
-            const itemData = {
-                id: itemId,
-                name: name,
-                description: description
-            };
-
-            if (type === 'quantitative') {
-                const weight = document.getElementById('quickAddWeight').value;
-                itemData.weight = parseInt(weight);
-                quantitativeItems[itemId] = itemData;
-            } else {
-                const scale = document.getElementById('quickAddScale').value;
-                itemData.scale = scale;
-                qualitativeItems[itemId] = itemData;
+            
+            const submitButton = document.getElementById('quickAddSubmitBtn');
+            const originalButtonText = submitButton.innerHTML;
+            
+            try {
+                // 🔄 로딩 상태 표시
+                submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>저장하는 중...';
+                submitButton.disabled = true;
+                submitButton.classList.add('opacity-75');
+                
+                // 📝 폼 데이터 수집
+                const type = document.getElementById('quickAddType').value;
+                const name = document.getElementById('quickAddName').value.trim();
+                const category = document.getElementById('quickAddCategory').value.trim();
+                const description = document.getElementById('quickAddDescription').value.trim();
+                const points = parseInt(document.getElementById('quickAddPoints').value);
+                const period = document.getElementById('quickAddPeriod').value;
+                const scope = document.getElementById('quickAddScope').value;
+                const guide = document.getElementById('quickAddGuide').value.trim();
+                const scoreStandard = document.getElementById('quickAddScoreStandard').value.trim();
+                
+                // 📊 API 요청 데이터 구성
+                const requestData = {
+                    name,
+                    type,
+                    category,
+                    points,
+                    guide,
+                    scoreStandard,
+                    period,
+                    scope,
+                    description,
+                    createdBy: currentUser?.name || 'System'
+                };
+                
+                console.log('📤 평가 항목 생성 요청:', requestData);
+                
+                // 🌐 API 호출
+                const response = await fetch('/api/evaluation-items', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log('✅ 평가 항목 생성 성공:', result.item);
+                    
+                    // ✨ 성공 애니메이션
+                    submitButton.innerHTML = '<i class="fas fa-check mr-2"></i>저장 완료!';
+                    submitButton.classList.add('bg-green-500');
+                    
+                    // 📊 UI 업데이트
+                    setTimeout(async () => {
+                        closeQuickAddModal();
+                        
+                        // 관련 그리드 새로고침
+                        if (type === 'quantitative') {
+                            await loadQuantitativeGrid();
+                        } else {
+                            await loadQualitativeGrid();
+                        }
+                        
+                        // 대시보드 통계 업데이트
+                        await updateDashboardStats();
+                        
+                        // 성공 알림
+                        showNotification(
+                            \`🎉 \${name} 항목이 성공적으로 추가되었습니다!\`, 
+                            'success'
+                        );
+                    }, 800);
+                    
+                } else {
+                    console.error('❌ 평가 항목 생성 실패:', result.message);
+                    showNotification(
+                        \`저장 실패: \${result.message || '알 수 없는 오류가 발생했습니다.'}\`, 
+                        'error'
+                    );
+                }
+                
+            } catch (error) {
+                console.error('❌ 평가 항목 생성 중 오류:', error);
+                showNotification(
+                    '저장 중 오류가 발생했습니다. 네트워크 연결을 확인해주세요.', 
+                    'error'
+                );
+            } finally {
+                // 버튼 상태 복원 (성공 시 지연)
+                if (!result?.success) {
+                    setTimeout(() => {
+                        submitButton.innerHTML = originalButtonText;
+                        submitButton.disabled = false;
+                        submitButton.classList.remove('opacity-75', 'bg-green-500');
+                    }, 100);
+                }
             }
-
-            closeQuickAddModal();
-            loadEvaluationItemsGrid();
-            updateDashboardStats();
-            showNotification(\`\${type === 'quantitative' ? '정량' : '정성'}평가 항목이 저장되었습니다.\`, 'success');
         });
 
         // 기존 함수들 (호환성을 위해 유지)
@@ -5511,7 +5992,7 @@ app.get('/dashboard', (c) => {
                     <p class="text-sm text-gray-600">\${description}</p>
                 </div>
                 <div class="flex items-center space-x-2">
-                    <span class="text-sm text-gray-500">가중치: \${weight}%</span>
+                    <span class="text-sm text-gray-500">배점: \${points}점</span>
                     <button onclick="editQuantitativeItem('\${itemId}')" class="text-blue-600 hover:text-blue-800">
                         <i class="fas fa-edit"></i>
                     </button>
@@ -5903,7 +6384,7 @@ app.get('/dashboard', (c) => {
                             \${data.quantitativeItems.map(item => \`
                                 <div class="flex justify-between items-center p-2 bg-blue-50 rounded">
                                     <span class="text-sm font-medium">\${item.name}</span>
-                                    <span class="text-xs text-blue-600">가중치: \${item.weight}%</span>
+                                    <span class="text-xs text-blue-600">배점: \${item.points}점</span>
                                 </div>
                             \`).join('')}
                         </div>
@@ -6002,6 +6483,9 @@ app.get('/dashboard', (c) => {
                 
                 // 평가 시스템 탭 버튼에 이벤트 리스너 추가
                 setupEvaluationTabEventListeners();
+                
+                // 🎯 실시간 유효성 검사 설정
+                setupRealTimeValidation();
                 
                 // 조직 폼 처리
                 setupOrganizationForm();
@@ -6306,7 +6790,7 @@ app.get('/dashboard', (c) => {
                             <div class="space-y-4">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">
-                                        <i class="fas fa-percentage mr-1"></i>가중치 (%)
+                                        <i class="fas fa-star mr-1"></i>배점 (점수)
                                     </label>
                                     <div class="flex items-center space-x-3">
                                         <input type="range" id="wizardWeightSlider" min="0" max="100" value="30" 
@@ -6432,58 +6916,354 @@ app.get('/dashboard', (c) => {
             </div>
         </div>
 
-        <!-- 빠른 추가 모달 (기존 간단한 모달) -->
-        <div id="quickAddModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-            <div class="bg-white rounded-lg p-6 w-full max-w-md">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-semibold text-gray-900" id="quickAddTitle">평가 항목 빠른 추가</h3>
-                    <button onclick="closeQuickAddModal()" class="text-gray-500 hover:text-gray-700">
-                        <i class="fas fa-times"></i>
-                    </button>
+        <!-- 🎨 현대적 카드형 빠른 추가 모달 -->
+        <div id="quickAddModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50 animate-fadeIn backdrop-blur-sm">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden animate-slideUp transform transition-all duration-300">
+                
+                <!-- 모달 헤더 with Progress Indicator -->
+                <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6 relative overflow-hidden">
+                    <!-- 배경 패턴 -->
+                    <div class="absolute inset-0 opacity-10">
+                        <div class="absolute inset-0" style="background-image: url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.4"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E');"></div>
+                    </div>
+                    
+                    <div class="flex items-center justify-between relative z-10">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center animate-pulse">
+                                <i class="fas fa-plus text-white text-xl"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-bold text-white" id="quickAddTitle">평가 항목 빠른 추가</h3>
+                                <p class="text-blue-100 text-sm" id="quickAddSubtitle">새로운 평가 항목을 생성합니다</p>
+                            </div>
+                        </div>
+                        <button onclick="closeQuickAddModal()" class="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition-all hover:rotate-90 duration-300">
+                            <i class="fas fa-times text-lg"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- 입력 진행도 표시 바 -->
+                    <div class="absolute bottom-0 left-0 right-0 h-1 bg-white bg-opacity-20">
+                        <div id="quickAddProgressBar" class="h-full bg-white transition-all duration-500" style="width: 0%"></div>
+                    </div>
                 </div>
                 
-                <form id="quickAddForm" class="space-y-4">
-                    <input type="hidden" id="quickAddType">
-                    <input type="hidden" id="quickAddItemId">
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">항목명</label>
-                        <input type="text" id="quickAddName" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                               placeholder="평가 항목 이름">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">설명</label>
-                        <textarea id="quickAddDescription" 
-                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                                  rows="2" placeholder="간단한 설명"></textarea>
-                    </div>
-                    
-                    <div id="quickAddWeightSection">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">가중치 (%)</label>
-                        <input type="number" id="quickAddWeight" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                               min="0" max="100" value="20">
-                    </div>
+                <!-- 모달 콘텐츠 -->
+                <div class="p-8 overflow-y-auto max-h-[calc(90vh-120px)]">
+                    <form id="quickAddForm" class="space-y-8">
+                        <input type="hidden" id="quickAddType">
+                        <input type="hidden" id="quickAddItemId">
+                        
+                        <!-- 📋 기본 정보 카드 -->
+                        <div class="bg-gray-50 rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-all duration-300 group">
+                            <div class="flex items-center mb-4">
+                                <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
+                                    <i class="fas fa-info text-blue-600 text-sm"></i>
+                                </div>
+                                <h4 class="text-lg font-semibold text-gray-900">기본 정보</h4>
+                                <span class="ml-auto text-xs text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <i class="fas fa-lightbulb text-yellow-500 mr-1"></i>
+                                    필수 항목을 모두 입력해주세요
+                                </span>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="space-y-2 relative">
+                                    <label class="block text-sm font-medium text-gray-700 flex items-center">
+                                        평가 항목명 <span class="text-red-500">*</span>
+                                        <span class="ml-2 text-gray-400 hover:text-gray-600 cursor-help group relative">
+                                            <i class="fas fa-question-circle text-xs"></i>
+                                            <span class="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-800 rounded-lg whitespace-nowrap z-10">
+                                                명확하고 구체적인 평가 항목명을 입력하세요
+                                                <span class="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 w-0 h-0 border-4 border-transparent border-t-gray-800"></span>
+                                            </span>
+                                        </span>
+                                    </label>
+                                    <div class="relative">
+                                        <input type="text" id="quickAddName" 
+                                               class="w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" 
+                                               placeholder="예: 월별 매출 달성률" 
+                                               oninput="updateFormProgress()"
+                                               required>
+                                        <span id="quickAddNameCheck" class="absolute right-3 top-1/2 transform -translate-y-1/2 hidden">
+                                            <i class="fas fa-check-circle text-green-500"></i>
+                                        </span>
+                                    </div>
+                                    <div class="text-xs text-gray-500 hidden" id="quickAddNameFeedback"></div>
+                                </div>
+                                
+                                <div class="space-y-2 relative">
+                                    <label class="block text-sm font-medium text-gray-700 flex items-center">
+                                        카테고리 <span class="text-red-500">*</span>
+                                        <span class="ml-2 text-gray-400 hover:text-gray-600 cursor-help group relative">
+                                            <i class="fas fa-question-circle text-xs"></i>
+                                            <span class="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-800 rounded-lg whitespace-nowrap z-10">
+                                                평가 항목이 속할 카테고리를 입력하세요
+                                                <span class="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 w-0 h-0 border-4 border-transparent border-t-gray-800"></span>
+                                            </span>
+                                        </span>
+                                    </label>
+                                    <div class="relative">
+                                        <input type="text" id="quickAddCategory" 
+                                               class="w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" 
+                                               placeholder="예: 매출 성과, 업무 역량" 
+                                               oninput="updateFormProgress()"
+                                               required>
+                                        <span id="quickAddCategoryCheck" class="absolute right-3 top-1/2 transform -translate-y-1/2 hidden">
+                                            <i class="fas fa-check-circle text-green-500"></i>
+                                        </span>
+                                    </div>
+                                    <div class="text-xs text-gray-500 hidden" id="quickAddCategoryFeedback"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-6 space-y-2">
+                                <label class="block text-sm font-medium text-gray-700">
+                                    상세 설명 <span class="text-red-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <textarea id="quickAddDescription" 
+                                              class="w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none" 
+                                              rows="3" 
+                                              placeholder="평가 항목에 대한 구체적인 설명을 입력하세요" 
+                                              oninput="updateFormProgress()"
+                                              required></textarea>
+                                    <span id="quickAddDescriptionCheck" class="absolute right-3 top-3 hidden">
+                                        <i class="fas fa-check-circle text-green-500"></i>
+                                    </span>
+                                </div>
+                                <div class="text-xs text-gray-500 hidden" id="quickAddDescriptionFeedback"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- ⚙️ 평가 설정 카드 -->
+                        <div class="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-6 border border-purple-200 hover:shadow-lg transition-all duration-300 group">
+                            <div class="flex items-center mb-4">
+                                <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3 group-hover:scale-110 group-hover:rotate-180 transition-all duration-500">
+                                    <i class="fas fa-cog text-purple-600 text-sm"></i>
+                                </div>
+                                <h4 class="text-lg font-semibold text-gray-900">평가 설정</h4>
+                                <span class="ml-auto text-xs text-purple-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <i class="fas fa-sliders-h mr-1"></i>
+                                    평가 기준을 설정하세요
+                                </span>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div class="space-y-2" id="quickAddPointsSection">
+                                    <label class="block text-sm font-medium text-gray-700">
+                                        배점 <span class="text-red-500">*</span>
+                                    </label>
+                                    <div class="relative">
+                                        <input type="number" id="quickAddPoints" 
+                                               class="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors" 
+                                               min="1" max="100" value="30" required>
+                                        <div class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">점</div>
+                                    </div>
+                                    <div class="text-xs text-purple-600">1-100점 사이로 입력하세요</div>
+                                </div>
 
-                    <div id="quickAddScaleSection" class="hidden">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">평가 방식</label>
-                        <select id="quickAddScale" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                            <option value="1-5">1-5점 척도</option>
-                            <option value="1-10">1-10점 척도</option>
-                            <option value="ABCD">A-B-C-D 등급</option>
-                        </select>
+                                <div class="space-y-2 hidden" id="quickAddScaleSection">
+                                    <label class="block text-sm font-medium text-gray-700">
+                                        평가 방식 <span class="text-red-500">*</span>
+                                    </label>
+                                    <select id="quickAddScale" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors">
+                                        <option value="1-5">1-5점 척도</option>
+                                        <option value="1-10">1-10점 척도</option>
+                                        <option value="ABCD">A-B-C-D 등급</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="space-y-2">
+                                    <label class="block text-sm font-medium text-gray-700">
+                                        적용 주기 <span class="text-red-500">*</span>
+                                    </label>
+                                    <select id="quickAddPeriod" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors" required>
+                                        <option value="monthly">월별</option>
+                                        <option value="quarterly">분기별</option>
+                                        <option value="semi-annual">반기별</option>
+                                        <option value="annual">연간</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="space-y-2">
+                                    <label class="block text-sm font-medium text-gray-700">
+                                        적용 범위 <span class="text-red-500">*</span>
+                                    </label>
+                                    <select id="quickAddScope" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors" required>
+                                        <option value="individual">개인</option>
+                                        <option value="part">파트</option>
+                                        <option value="team">팀</option>
+                                        <option value="department">본부</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 📏 평가 기준 카드 -->
+                        <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200 hover:shadow-lg transition-all duration-300 group">
+                            <div class="flex items-center mb-4">
+                                <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
+                                    <i class="fas fa-ruler text-green-600 text-sm"></i>
+                                </div>
+                                <h4 class="text-lg font-semibold text-gray-900">평가 기준</h4>
+                                <span class="ml-auto text-xs text-green-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <i class="fas fa-chart-line mr-1"></i>
+                                    구체적인 평가 기준을 제시하세요
+                                </span>
+                            </div>
+                            
+                            <div class="space-y-6">
+                                <div class="space-y-2">
+                                    <label class="block text-sm font-medium text-gray-700">
+                                        직장 가이드 <span class="text-red-500">*</span>
+                                    </label>
+                                    <div class="relative">
+                                        <textarea id="quickAddGuide" 
+                                                  class="w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all resize-none" 
+                                                  rows="2" 
+                                                  placeholder="평가 방법과 기준에 대한 가이드를 작성하세요" 
+                                                  oninput="updateFormProgress()"
+                                                  required></textarea>
+                                        <span id="quickAddGuideCheck" class="absolute right-3 top-3 hidden">
+                                            <i class="fas fa-check-circle text-green-500"></i>
+                                        </span>
+                                    </div>
+                                    <div class="text-xs text-green-600">평가자가 참고할 수 있는 구체적인 가이드를 제공하세요</div>
+                                </div>
+                                
+                                <div class="space-y-2">
+                                    <label class="block text-sm font-medium text-gray-700">
+                                        점수 기준 <span class="text-red-500">*</span>
+                                    </label>
+                                    <div class="relative">
+                                        <textarea id="quickAddScoreStandard" 
+                                                  class="w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all resize-none" 
+                                                  rows="4" 
+                                                  placeholder="점수별 달성 기준을 구체적으로 명시하세요&#10;예: 30점: 110% 이상 달성&#10;    25점: 100-109% 달성&#10;    20점: 90-99% 달성" 
+                                                  oninput="updateFormProgress()"
+                                                  required></textarea>
+                                        <span id="quickAddScoreStandardCheck" class="absolute right-3 top-3 hidden">
+                                            <i class="fas fa-check-circle text-green-500"></i>
+                                        </span>
+                                    </div>
+                                    <div class="text-xs text-green-600">각 점수 구간별로 명확한 달성 기준을 설정하세요</div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- 모달 푸터 -->
+                <div class="bg-gray-50 px-8 py-6 border-t border-gray-200 flex items-center justify-between">
+                    <div class="text-sm text-gray-500">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        모든 필수 항목(*)을 입력해주세요
                     </div>
                     
-                    <div class="flex space-x-3 pt-4">
-                        <button type="submit" class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
-                            추가
+                    <div class="flex space-x-3">
+                        <button type="button" onclick="closeQuickAddModal()" 
+                                class="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors border border-gray-300">
+                            <i class="fas fa-times mr-2"></i>취소
                         </button>
-                        <button type="button" onclick="closeQuickAddModal()" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors">
-                            취소
+                        <button type="submit" form="quickAddForm" id="quickAddSubmitBtn"
+                                class="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-[1.02]">
+                            <i class="fas fa-save mr-2"></i>저장하기
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 🎨 추가 CSS 스타일 -->
+        <style>
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            
+            @keyframes fadeOut {
+                from { opacity: 1; }
+                to { opacity: 0; }
+            }
+            
+            @keyframes slideUp {
+                from { 
+                    opacity: 0;
+                    transform: translateY(20px);
+                }
+                to { 
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            
+            .animate-fadeIn {
+                animation: fadeIn 0.2s ease-out;
+            }
+            
+            .animate-slideUp {
+                animation: slideUp 0.3s ease-out;
+            }
+            
+            /* 폼 필드 포커스 애니메이션 */
+            input:focus, textarea:focus, select:focus {
+                transform: translateY(-1px);
+                box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+            }
+            
+            /* 유효성 검사 스타일 */
+            .field-valid {
+                border-color: #10b981 !important;
+                box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1) !important;
+            }
+            
+            .field-invalid {
+                border-color: #ef4444 !important;
+                box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.1) !important;
+            }
+            
+            /* 버튼 호버 효과 */
+            button:hover {
+                transform: translateY(-1px);
+                transition: all 0.2s ease;
+            }
+            
+            /* 카드 호버 효과 */
+            .bg-gray-50:hover, .bg-gradient-to-br:hover {
+                transform: translateY(-2px);
+                transition: all 0.3s ease;
+                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            }
+            
+            /* 입력 완료 체크 애니메이션 */
+            @keyframes checkBounce {
+                0% { transform: scale(0) rotate(0deg); }
+                50% { transform: scale(1.2) rotate(180deg); }
+                100% { transform: scale(1) rotate(360deg); }
+            }
+            
+            .check-icon-appear {
+                animation: checkBounce 0.5s ease-out;
+            }
+            
+            /* 프로그레스 바 빛나는 효과 */
+            @keyframes shimmer {
+                0% { background-position: -1000px 0; }
+                100% { background-position: 1000px 0; }
+            }
+            
+            .progress-shimmer {
+                background: linear-gradient(
+                    90deg,
+                    rgba(255, 255, 255, 0.3) 0%,
+                    rgba(255, 255, 255, 0.6) 50%,
+                    rgba(255, 255, 255, 0.3) 100%
+                );
+                background-size: 1000px 100%;
+                animation: shimmer 2s infinite;
+            }
+        </style>
                 </form>
             </div>
         </div>
@@ -6603,6 +7383,258 @@ app.use('*', async (c, next) => {
   }
   await next()
 })
+
+// ============================================
+// 평가 항목 관리 API
+// ============================================
+
+// 평가 항목 데이터 구조 (엑셀 파일 기준 + 기획안 주기/적용범위)
+interface EvaluationItem {
+  id: string;
+  name: string; // 평가 항목 (엑셀: 평가 항목)
+  type: 'quantitative' | 'qualitative'; // 구분 (엑셀: 정량평가/정성평가)
+  category: string; // 카테고리 분류용
+  points: number; // 배점 (엑셀: 30점, 10점, 5점 등)
+  guide: string; // 직장 가이드 (엑셀: 직장 가이드)
+  scoreStandard: string; // 점수 기준 (엑셀: 5점: 110% 이상, 4점: 90% 이상...)
+  
+  // 기획안 추가 요소
+  period: 'monthly' | 'quarterly' | 'semi-annual' | 'annual'; // 주기
+  scope: 'individual' | 'part' | 'team' | 'department'; // 적용 범위
+  
+  description: string; // 상세 설명
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+}
+
+// 글로벌 평가 항목 저장소
+let evaluationItems: { [key: string]: EvaluationItem } = {};
+
+// 평가 항목 통계 (구체적인 경로를 먼저 정의)
+app.get('/api/evaluation-items/stats', async (c) => {
+  const items = Object.values(evaluationItems);
+  
+  const stats = {
+    total: items.length,
+    byType: {
+      quantitative: items.filter(item => item.type === 'quantitative').length,
+      qualitative: items.filter(item => item.type === 'qualitative').length
+    },
+    byPeriod: {
+      monthly: items.filter(item => item.period === 'monthly').length,
+      quarterly: items.filter(item => item.period === 'quarterly').length,
+      'semi-annual': items.filter(item => item.period === 'semi-annual').length,
+      annual: items.filter(item => item.period === 'annual').length
+    },
+    byScope: {
+      individual: items.filter(item => item.scope === 'individual').length,
+      part: items.filter(item => item.scope === 'part').length,
+      team: items.filter(item => item.scope === 'team').length,
+      department: items.filter(item => item.scope === 'department').length
+    },
+    totalPoints: items.reduce((sum, item) => sum + item.points, 0)
+  };
+  
+  return c.json({ success: true, stats });
+});
+
+// 평가 항목 목록 조회
+app.get('/api/evaluation-items', async (c) => {
+  return c.json({ 
+    success: true, 
+    items: Object.values(evaluationItems),
+    total: Object.keys(evaluationItems).length
+  });
+});
+
+// 평가 항목 상세 조회
+app.get('/api/evaluation-items/:id', async (c) => {
+  const id = c.req.param('id');
+  const item = evaluationItems[id];
+  
+  if (!item) {
+    return c.json({ success: false, message: '평가 항목을 찾을 수 없습니다.' }, 404);
+  }
+  
+  return c.json({ success: true, item });
+});
+
+// 평가 항목 생성 (빠른 추가)
+app.post('/api/evaluation-items', async (c) => {
+  const data = await c.req.json();
+  const { name, type, category, points, guide, period, scope, description, scoreStandard, createdBy } = data;
+  
+  // 필수 필드 검증
+  if (!name || !type || !category || !points || !guide || !period || !scope || !description || !scoreStandard || !createdBy) {
+    return c.json({ success: false, message: '모든 필수 필드를 입력해주세요.' }, 400);
+  }
+  
+  // 배점 검증 (1-100 사이)
+  if (points < 1 || points > 100) {
+    return c.json({ success: false, message: '배점은 1~100 사이여야 합니다.' }, 400);
+  }
+  
+  const id = `eval_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const timestamp = new Date().toISOString();
+  
+  const newItem: EvaluationItem = {
+    id,
+    name,
+    type,
+    category,
+    points,
+    guide,
+    scoreStandard,
+    period,
+    scope,
+    description,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    createdBy
+  };
+  
+  evaluationItems[id] = newItem;
+  
+  console.log(`📊 새 평가 항목 생성: ${name} (${type === 'quantitative' ? '정량' : '정성'}, ${points}점)`);
+  
+  return c.json({ 
+    success: true, 
+    message: '평가 항목이 생성되었습니다.',
+    item: newItem 
+  });
+});
+
+// 평가 항목 수정
+app.put('/api/evaluation-items/:id', async (c) => {
+  const id = c.req.param('id');
+  const data = await c.req.json();
+  
+  const existingItem = evaluationItems[id];
+  if (!existingItem) {
+    return c.json({ success: false, message: '평가 항목을 찾을 수 없습니다.' }, 404);
+  }
+  
+  const { name, type, category, points, guide, period, scope, description, scoreStandard } = data;
+  
+  // 배점 검증
+  if (points && (points < 1 || points > 100)) {
+    return c.json({ success: false, message: '배점은 1~100 사이여야 합니다.' }, 400);
+  }
+  
+  // 항목 업데이트
+  evaluationItems[id] = {
+    ...existingItem,
+    name: name || existingItem.name,
+    type: type || existingItem.type,
+    category: category || existingItem.category,
+    points: points !== undefined ? points : existingItem.points,
+    guide: guide || existingItem.guide,
+    period: period || existingItem.period,
+    scope: scope || existingItem.scope,
+    description: description || existingItem.description,
+    scoreStandard: scoreStandard || existingItem.scoreStandard,
+    updatedAt: new Date().toISOString()
+  };
+  
+  console.log(`📊 평가 항목 수정: ${evaluationItems[id].name}`);
+  
+  return c.json({ 
+    success: true, 
+    message: '평가 항목이 수정되었습니다.',
+    item: evaluationItems[id] 
+  });
+});
+
+// 평가 항목 삭제
+app.delete('/api/evaluation-items/:id', async (c) => {
+  const id = c.req.param('id');
+  
+  if (!evaluationItems[id]) {
+    return c.json({ success: false, message: '평가 항목을 찾을 수 없습니다.' }, 404);
+  }
+  
+  const deletedItem = evaluationItems[id];
+  delete evaluationItems[id];
+  
+  console.log(`🗑️ 평가 항목 삭제: ${deletedItem.name}`);
+  
+  return c.json({ 
+    success: true, 
+    message: '평가 항목이 삭제되었습니다.' 
+  });
+});
+
+// 평가 항목 일괄 생성 (마법사 추가)
+app.post('/api/evaluation-items/bulk', async (c) => {
+  const data = await c.req.json();
+  const { items, createdBy } = data;
+  
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return c.json({ success: false, message: '생성할 항목이 없습니다.' }, 400);
+  }
+  
+  if (!createdBy) {
+    return c.json({ success: false, message: '생성자 정보가 필요합니다.' }, 400);
+  }
+  
+  const createdItems = [];
+  const errors = [];
+  
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    
+    try {
+      // 필수 필드 검증
+      if (!item.name || !item.type || !item.category || !item.points || !item.guide || !item.period || !item.scope || !item.description || !item.scoreStandard) {
+        errors.push(`${i + 1}번째 항목: 필수 필드가 누락되었습니다.`);
+        continue;
+      }
+      
+      // 배점 검증
+      if (item.points < 1 || item.points > 100) {
+        errors.push(`${i + 1}번째 항목: 배점은 1~100 사이여야 합니다.`);
+        continue;
+      }
+      
+      const id = `eval_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const timestamp = new Date().toISOString();
+      
+      const newItem: EvaluationItem = {
+        id,
+        name: item.name,
+        type: item.type,
+        category: item.category,
+        points: item.points,
+        guide: item.guide,
+        scoreStandard: item.scoreStandard,
+        period: item.period,
+        scope: item.scope,
+        description: item.description,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        createdBy
+      };
+      
+      evaluationItems[id] = newItem;
+      createdItems.push(newItem);
+      
+    } catch (error) {
+      errors.push(`${i + 1}번째 항목: ${error.message}`);
+    }
+  }
+  
+  console.log(`📊 일괄 생성 완료: ${createdItems.length}개 성공, ${errors.length}개 실패`);
+  
+  return c.json({ 
+    success: true, 
+    message: `${createdItems.length}개의 평가 항목이 생성되었습니다.`,
+    created: createdItems,
+    errors: errors
+  });
+});
+
+
 
 // Static files 처리
 app.use('/static/*', serveStatic({ root: './public' }))
