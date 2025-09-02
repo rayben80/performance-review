@@ -1,12 +1,20 @@
-name = "webapp"
+name = "cloud-performance-system-2025"
 compatibility_date = "2024-01-01"
 pages_build_output_dir = "./dist"
+compatibility_flags = ["nodejs_compat"]
 
-# D1 Database configuration
-[[d1_databases]]
-binding = "DB"
-database_name = "webapp-production"
-database_id = "placeholder-database-id"
+# Environment variables (secrets will be set via wrangler secret)
+[vars]
+SYSTEM_NAME = "클라우드사업본부 업무평가 시스템"
+ADMIN_EMAIL = "rayben@forcs.com"
 
+# Production environment
 [env.production]
-name = "webapp"
+name = "cloud-performance-system-2025"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Production environment variables
+[env.production.vars]
+SYSTEM_NAME = "클라우드사업본부 업무평가 시스템"
+ADMIN_EMAIL = "rayben@forcs.com"

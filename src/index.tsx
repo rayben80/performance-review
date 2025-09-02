@@ -3,24 +3,40 @@ import { serveStatic } from 'hono/cloudflare-workers'
 import { EmailService } from './email-service'
 import { GmailFetchService } from './gmail-fetch-service'
 
-const app = new Hono()
+// Cloudflare Workers 환경 변수 타입 정의
+type Bindings = {
+  GMAIL_USER?: string;
+  GMAIL_APP_PASSWORD?: string;
+  SYSTEM_NAME?: string;
+  BASE_URL?: string;
+  ADMIN_EMAIL?: string;
+}
+
+const app = new Hono<{ Bindings: Bindings }>()
 
 // 이메일 서비스 초기화 (환경 변수 기반)
 let emailService: any = null
 
-// 환경 변수 기본값 (개발 환경 임시 설정)
-const getEnvConfig = () => ({
-  gmailUser: 'rayben@forcs.com',
-  gmailAppPassword: 'gveq uzww grfz mdui', // 실제 앱 비밀번호
-  systemName: '클라우드사업본부 업무평가 시스템',
-  baseUrl: 'https://3000-i1vfivcrcs12trdqel9xg-6532622b.e2b.dev',
-  adminEmail: 'admin@company.com'
+// 환경 변수 설정 (프로덕션/개발 환경 대응)
+const getEnvConfig = (env?: any) => ({
+  gmailUser: env?.GMAIL_USER || 'rayben@forcs.com',
+  gmailAppPassword: env?.GMAIL_APP_PASSWORD || 'gveq uzww grfz mdui',
+  systemName: env?.SYSTEM_NAME || '클라우드사업본부 업무평가 시스템',
+  baseUrl: env?.BASE_URL || 'https://cloud-performance-system-2025.pages.dev',
+  adminEmail: env?.ADMIN_EMAIL || 'rayben@forcs.com'
 })
 
+// 글로벌 환경 변수 캐시
+let globalEnv: any = null
+
 // 이메일 서비스 초기화 함수
-async function initializeEmailService() {
+async function initializeEmailService(env?: any) {
   try {
-    const config = getEnvConfig()
+    // 환경 변수 캐시
+    if (env) {
+      globalEnv = env
+    }
+    const config = getEnvConfig(globalEnv || env)
     
     // Gmail 앱 비밀번호가 설정되어 있는지 확인
     const hasGmailPassword = config.gmailAppPassword && 
@@ -52,15 +68,210 @@ async function initializeEmailService() {
   }
 }
 
+// 조직 구조 자동 초기화 함수
+async function initializeOrganizations() {
+  try {
+    const timestamp = new Date().toISOString()
+    
+    // 실제 클라우드사업본부 조직 구조
+    const cloudBusinessOrganizations = {
+      // Sales팀
+      'org_sales': {
+        id: 'org_sales',
+        name: 'Sales팀',
+        type: 'team',
+        parentId: null,
+        description: '영업 및 판매 업무를 담당하는 팀',
+        memberCount: 0,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      },
+      'org_sales_sales': {
+        id: 'org_sales_sales',
+        name: '영업',
+        type: 'part',
+        parentId: 'org_sales',
+        description: '신규 고객 발굴 및 영업 활동',
+        memberCount: 0,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      },
+      'org_sales_management': {
+        id: 'org_sales_management',
+        name: '영업관리',
+        type: 'part',
+        parentId: 'org_sales',
+        description: '영업 프로세스 관리 및 고객 관계 관리',
+        memberCount: 0,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      },
+      
+      // CX팀
+      'org_cx': {
+        id: 'org_cx',
+        name: 'CX팀',
+        type: 'team',
+        parentId: null,
+        description: '고객 경험, 기술 지원, 마케팅 및 사업 운영을 담당하는 팀',
+        memberCount: 0,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      },
+      'org_cx_customer_service': {
+        id: 'org_cx_customer_service',
+        name: '고객서비스',
+        type: 'part',
+        parentId: 'org_cx',
+        description: '고객 문의 및 서비스 지원',
+        memberCount: 0,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      },
+      'org_cx_tech_support': {
+        id: 'org_cx_tech_support',
+        name: '기술지원',
+        type: 'part',
+        parentId: 'org_cx',
+        description: '기술적 문제 해결 및 지원',
+        memberCount: 0,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      },
+      'org_cx_tech_writing': {
+        id: 'org_cx_tech_writing',
+        name: 'Technical Writing',
+        type: 'part',
+        parentId: 'org_cx',
+        description: '기술 문서 작성 및 관리',
+        memberCount: 0,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      },
+      'org_cx_tech_marketing': {
+        id: 'org_cx_tech_marketing',
+        name: 'Technical Marketing',
+        type: 'part',
+        parentId: 'org_cx',
+        description: '기술 중심의 마케팅 전략 및 실행',
+        memberCount: 0,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      },
+      'org_cx_business_ops': {
+        id: 'org_cx_business_ops',
+        name: '사업운영',
+        type: 'part',
+        parentId: 'org_cx',
+        description: '사업 전략 및 운영 업무',
+        memberCount: 0,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      }
+    }
+    
+    // 기존 데이터 모두 삭제하고 새 구조로 교체
+    globalThis.organizationDatabase = JSON.stringify(cloudBusinessOrganizations)
+    
+    console.log('⚙️ 조직 구조 자동 초기화 완료')
+  } catch (error) {
+    console.error('❌ 조직 구조 초기화 실패:', error)
+  }
+}
+
+// 전역 초기화 함수 (Fetch 이벤트를 사용하여 비동기 처리)
+let isInitialized = false
+
 // 정적 파일 서빙 - Cloudflare Workers 방식 (API와 충돌하지 않도록)
 app.use('/js/*', serveStatic({ root: './' }))
 app.use('/css/*', serveStatic({ root: './' }))
 app.use('/public/*', serveStatic({ root: './' }))
 app.use('/favicon.ico', serveStatic({ root: './' }))
 
+// 초기화 미들웨어
+app.use('/api/*', async (c, next) => {
+  if (!isInitialized) {
+    console.log('🚀 시스템 초기화 시작...')
+    await initializeEmailService()
+    await initializeOrganizations()
+    isInitialized = true
+    console.log('✅ 시스템 초기화 완료')
+  }
+  await next()
+})
+
 // API 라우트
 app.get('/api/health', (c) => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() })
+})
+
+// 테스트 이메일 발송 API
+app.post('/api/test-email', async (c) => {
+  const { to, subject, message } = await c.req.json()
+  
+  console.log('🔍 Email service status:', emailService ? 'initialized' : 'not initialized')
+  if (emailService) {
+    try {
+      console.log('📧 테스트 이메일 발송 시도:', to)
+      
+      // 직접 이메일 발송 테스트
+      const testTemplate = {
+        to: to || 'rayben@forcs.com',
+        subject: subject || '테스트 이메일 - 클라우드사업본부 업무평가 시스템',
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <meta charset="UTF-8">
+              <title>테스트 이메일</title>
+          </head>
+          <body style="font-family: 'Malgun Gothic', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); padding: 25px; text-align: center; border-radius: 12px; color: white; margin-bottom: 20px;">
+                  <h2>📧 테스트 이메일</h2>
+                  <p>클라우드사업본부 업무평가 시스템</p>
+              </div>
+              <div style="background: white; padding: 35px; border: 1px solid #e5e7eb; border-radius: 8px; line-height: 1.6;">
+                  <h3>🔥 실제 Gmail 발송 테스트</h3>
+                  <p><strong>발송 시간:</strong> ${new Date().toLocaleString('ko-KR')}</p>
+                  <p><strong>메시지:</strong> ${message || '이것은 실제 Gmail을 통해 발송되는 테스트 이메일입니다.'}</p>
+                  <p><strong>발송자:</strong> rayben@forcs.com</p>
+                  <p><strong>시스템:</strong> 클라우드사업본부 업무평가 시스템</p>
+                  
+                  <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                      <p><strong>✅ Gmail 발송 성공!</strong></p>
+                      <p>이 이메일이 정상적으로 도착했다면 Gmail 알림 시스템이 올바르게 작동하고 있는 것입니다.</p>
+                  </div>
+              </div>
+              <div style="background: #f9fafb; padding: 20px; text-align: center; border-radius: 8px; margin-top: 20px; color: #6b7280; font-size: 14px;">
+                  <p>이 이메일은 클라우드사업본부 업무평가 시스템에서 자동 발송되었습니다.</p>
+              </div>
+          </body>
+          </html>
+        `
+      }
+      
+      const success = await emailService.sendEmail(testTemplate)
+      
+      if (success) {
+        return c.json({ 
+          success: true, 
+          message: '테스트 이메일이 발송되었습니다.',
+          details: {
+            to: testTemplate.to,
+            subject: testTemplate.subject,
+            timestamp: new Date().toISOString()
+          }
+        })
+      } else {
+        return c.json({ success: false, message: '이메일 발송에 실패했습니다.' }, 500)
+      }
+    } catch (error) {
+      console.error('❌ 테스트 이메일 발송 오류:', error)
+      return c.json({ success: false, message: '이메일 발송 중 오류가 발생했습니다.', error: error.message }, 500)
+    }
+  } else {
+    return c.json({ success: false, message: '이메일 서비스가 초기화되지 않았습니다.' }, 503)
+  }
 })
 
 // 로그인 API
@@ -109,10 +320,10 @@ app.post('/api/login', async (c) => {
 
 // 회원가입 API
 app.post('/api/signup', async (c) => {
-  const { email, password, confirmPassword, name, role } = await c.req.json()
+  const { email, password, confirmPassword, name, role, team, part } = await c.req.json()
   
   // 유효성 검사
-  if (!email || !password || !confirmPassword || !name) {
+  if (!email || !password || !confirmPassword || !name || !team || !part) {
     return c.json({ success: false, message: '모든 필드를 입력해주세요.' }, 400)
   }
   
@@ -137,12 +348,26 @@ app.post('/api/signup', async (c) => {
     return c.json({ success: false, message: '이미 등록된 이메일입니다.' }, 409)
   }
   
+  // 조직 정보 유효성 검사
+  const organizations = JSON.parse(globalThis.organizationDatabase || '{}')
+  if (!organizations[team] || !organizations[part]) {
+    return c.json({ success: false, message: '유효하지 않은 조직 정보입니다.' }, 400)
+  }
+  
+  // 팀-파트 관계 검증
+  if (organizations[part].parentId !== team) {
+    return c.json({ success: false, message: '선택한 팀과 파트가 일치하지 않습니다.' }, 400)
+  }
+  
   // 새 사용자 추가 (승인 대기 상태)
   const newUser = {
     email,
     password, // 실제 운영에서는 해시화해야 함
     name,
-    role: role || 'user', // 기본값은 일반 사용자
+    role: 'user', // 무조건 일반 사용자로 가입
+    team,
+    part,
+    organizationId: part, // 파트 ID를 조직 ID로 사용
     status: 'pending', // 승인 대기 상태
     createdAt: new Date().toISOString(),
     approvedAt: null,
@@ -153,17 +378,23 @@ app.post('/api/signup', async (c) => {
   globalThis.userDatabase = JSON.stringify(existingUsers)
   
   // 이메일 알림 발송 (관리자에게)
+  console.log('🔍 Email service status:', emailService ? 'initialized' : 'not initialized')
   if (emailService) {
     try {
+      console.log('📧 Sending signup notification for:', newUser.email)
       await emailService.notifySignupRequest({
         name: newUser.name,
         email: newUser.email,
-        role: newUser.role
+        role: newUser.role,
+        team: organizations[team].name,
+        part: organizations[part].name
       })
       console.log('✅ Signup notification sent to admin')
     } catch (error) {
       console.error('❌ Failed to send signup notification:', error)
     }
+  } else {
+    console.log('⚠️ Email service not initialized - signup notification skipped')
   }
   
   return c.json({ 
@@ -173,6 +404,8 @@ app.post('/api/signup', async (c) => {
       email: newUser.email,
       name: newUser.name,
       role: newUser.role,
+      team: organizations[team].name,
+      part: organizations[part].name,
       status: newUser.status
     }
   })
@@ -181,11 +414,15 @@ app.post('/api/signup', async (c) => {
 // 사용자 목록 조회 API (관리자용)
 app.get('/api/users', async (c) => {
   const users = JSON.parse(globalThis.userDatabase || '{}')
-  const userList = Object.values(users).map(user => ({
+  const organizations = JSON.parse(globalThis.organizationDatabase || '{}')
+  
+  const userList = Object.values(users || {}).map(user => ({
     email: user.email,
     name: user.name,
     role: user.role,
     status: user.status || 'approved', // 기존 사용자는 승인됨으로 처리
+    team: user.team ? (organizations[user.team]?.name || user.team) : null, // 팀 이름으로 변환
+    part: user.part ? (organizations[user.part]?.name || user.part) : null, // 파트 이름으로 변환
     createdAt: user.createdAt,
     approvedAt: user.approvedAt,
     approvedBy: user.approvedBy
@@ -197,12 +434,15 @@ app.get('/api/users', async (c) => {
 // 대기 중인 회원 목록 API
 app.get('/api/users/pending', async (c) => {
   const users = JSON.parse(globalThis.userDatabase || '{}')
-  const pendingUsers = Object.values(users)
-    .filter(user => user.status === 'pending')
+  const organizations = JSON.parse(globalThis.organizationDatabase || '{}')
+  const pendingUsers = Object.values(users || {})
+    .filter(user => user?.status === 'pending')
     .map(user => ({
       email: user.email,
       name: user.name,
       role: user.role,
+      team: user.team ? (organizations[user.team]?.name || user.team) : null, // 팀 이름으로 변환
+      part: user.part ? (organizations[user.part]?.name || user.part) : null, // 파트 이름으로 변환
       createdAt: user.createdAt
     }))
   
@@ -232,7 +472,23 @@ app.post('/api/users/approve', async (c) => {
   users[email].approvedAt = new Date().toISOString()
   users[email].approvedBy = approverEmail
   
+  // 승인된 사용자의 조직에 멤버 수 증가
+  const organizations = JSON.parse(globalThis.organizationDatabase || '{}')
+  const approvedUser = users[email]
+  
+  // 사용자의 팀과 파트 조직 멤버 수 증가
+  if (approvedUser.team && organizations[approvedUser.team]) {
+    organizations[approvedUser.team].memberCount = (organizations[approvedUser.team].memberCount || 0) + 1
+    console.log(`👥 ${organizations[approvedUser.team].name} 팀 멤버수 증가: ${organizations[approvedUser.team].memberCount}명`)
+  }
+  
+  if (approvedUser.part && organizations[approvedUser.part]) {
+    organizations[approvedUser.part].memberCount = (organizations[approvedUser.part].memberCount || 0) + 1
+    console.log(`👥 ${organizations[approvedUser.part].name} 파트 멤버수 증가: ${organizations[approvedUser.part].memberCount}명`)
+  }
+  
   globalThis.userDatabase = JSON.stringify(users)
+  globalThis.organizationDatabase = JSON.stringify(organizations)
   
   // 승인 알림 이메일 발송 (신청자에게)
   if (emailService) {
@@ -286,8 +542,10 @@ app.post('/api/users/reject', async (c) => {
   globalThis.userDatabase = JSON.stringify(users)
   
   // 거부 알림 이메일 발송 (신청자에게)
+  console.log('🔍 Email service status:', emailService ? 'initialized' : 'not initialized')
   if (emailService) {
     try {
+      console.log('📧 Sending rejection notification to:', users[email].email)
       await emailService.notifyRejection({
         name: users[email].name,
         email: users[email].email,
@@ -298,6 +556,8 @@ app.post('/api/users/reject', async (c) => {
     } catch (error) {
       console.error('❌ Failed to send rejection notification:', error)
     }
+  } else {
+    console.log('⚠️ Email service not initialized - rejection notification skipped')
   }
   
   return c.json({ 
@@ -348,15 +608,30 @@ app.post('/api/test-email', async (c) => {
 // 조직 목록 조회
 app.get('/api/organizations', async (c) => {
   const organizations = JSON.parse(globalThis.organizationDatabase || '{}')
-  const orgList = Object.values(organizations).map(org => ({
-    id: org.id,
-    name: org.name,
-    type: org.type,
-    parentId: org.parentId,
-    description: org.description,
-    memberCount: org.memberCount || 0,
-    createdAt: org.createdAt
-  }))
+  const users = JSON.parse(globalThis.userDatabase || '{}')
+  
+  const orgList = Object.values(organizations || {}).map(org => {
+    // 해당 조직에 소속된 승인된 사용자 목록 찾기
+    const members = Object.values(users)
+      .filter(user => user.status === 'approved' && (user.team === org.id || user.part === org.id))
+      .map(user => ({
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        approvedAt: user.approvedAt
+      }))
+    
+    return {
+      id: org.id,
+      name: org.name,
+      type: org.type,
+      parentId: org.parentId,
+      description: org.description,
+      memberCount: members.length, // 실제 멤버 수로 업데이트
+      members: members, // 멤버 목록 추가
+      createdAt: org.createdAt
+    }
+  })
   
   return c.json({ success: true, organizations: orgList })
 })
@@ -720,6 +995,144 @@ app.delete('/api/users/:email', async (c) => {
   })
 })
 
+// 사용자 정보 수정
+app.put('/api/users/:email', async (c) => {
+  const email = c.req.param('email')
+  const { name, role, team, part, updaterEmail } = await c.req.json()
+  
+  const users = JSON.parse(globalThis.userDatabase || '{}')
+  
+  if (!users[email]) {
+    return c.json({ success: false, message: '사용자를 찾을 수 없습니다.' }, 404)
+  }
+  
+  // 조직 정보 유효성 검사 (팀/파트가 제공된 경우)
+  if (team && part) {
+    const organizations = JSON.parse(globalThis.organizationDatabase || '{}')
+    if (!organizations[team] || !organizations[part]) {
+      return c.json({ success: false, message: '유효하지 않은 조직 정보입니다.' }, 400)
+    }
+    
+    // 팀-파트 관계 검증
+    if (organizations[part].parentId !== team) {
+      return c.json({ success: false, message: '선택한 팀과 파트가 일치하지 않습니다.' }, 400)
+    }
+    
+    // 기존 조직에서 멤버 수 감소
+    if (users[email].organizationId && users[email].organizationId !== part) {
+      const oldOrg = organizations[users[email].organizationId]
+      if (oldOrg) {
+        oldOrg.memberCount = Math.max(0, (oldOrg.memberCount || 0) - 1)
+      }
+      
+      // 새 조직에 멤버 수 증가
+      const newOrg = organizations[part]
+      if (newOrg) {
+        newOrg.memberCount = (newOrg.memberCount || 0) + 1
+      }
+      
+      globalThis.organizationDatabase = JSON.stringify(organizations)
+    }
+  }
+  
+  // 사용자 정보 업데이트
+  const updatedUser = {
+    ...users[email],
+    name: name || users[email].name,
+    role: role || users[email].role,
+    team: team || users[email].team,
+    part: part || users[email].part,
+    organizationId: part || users[email].organizationId,
+    updatedAt: new Date().toISOString(),
+    updatedBy: updaterEmail
+  }
+  
+  users[email] = updatedUser
+  globalThis.userDatabase = JSON.stringify(users)
+  
+  return c.json({ 
+    success: true, 
+    message: '사용자 정보가 성공적으로 수정되었습니다.',
+    user: {
+      email: updatedUser.email,
+      name: updatedUser.name,
+      role: updatedUser.role,
+      team: updatedUser.team,
+      part: updatedUser.part,
+      status: updatedUser.status,
+      updatedAt: updatedUser.updatedAt
+    }
+  })
+})
+
+// 사용자 삭제 (평가 데이터는 보존)
+app.delete('/api/users/:email', async (c) => {
+  const email = c.req.param('email')
+  const { deleterEmail } = await c.req.json()
+  
+  if (!deleterEmail) {
+    return c.json({ success: false, message: '삭제 요청자 정보가 필요합니다.' }, 400)
+  }
+  
+  const users = JSON.parse(globalThis.userDatabase || '{}')
+  
+  if (!users[email]) {
+    return c.json({ success: false, message: '사용자를 찾을 수 없습니다.' }, 404)
+  }
+  
+  // 자기 자신 삭제 방지
+  if (email === deleterEmail) {
+    return c.json({ success: false, message: '자기 자신은 삭제할 수 없습니다.' }, 400)
+  }
+  
+  // 삭제할 사용자 정보 백업 (로그용)
+  const deletedUser = { ...users[email] }
+  
+  // 사용자 조직에서 멤버 수 감소
+  if (deletedUser.organizationId) {
+    const organizations = JSON.parse(globalThis.organizationDatabase || '{}')
+    if (organizations[deletedUser.organizationId]) {
+      organizations[deletedUser.organizationId].memberCount = 
+        Math.max(0, (organizations[deletedUser.organizationId].memberCount || 0) - 1)
+      globalThis.organizationDatabase = JSON.stringify(organizations)
+    }
+  }
+  
+  // 사용자 데이터베이스에서 제거
+  delete users[email]
+  globalThis.userDatabase = JSON.stringify(users)
+  
+  // 삭제 로그 기록 (평가 데이터는 그대로 유지)
+  console.log(`🗑️ 사용자 삭제됨: ${deletedUser.name} (${email}) by ${deleterEmail}`)
+  console.log(`📝 평가 데이터는 보존됨 - 삭제된 사용자의 평가 기록은 유지됩니다`)
+  
+  // 이메일 알림 발송 (관리자에게)
+  if (emailService) {
+    try {
+      await emailService.notifyUserDeleted({
+        deletedUserName: deletedUser.name,
+        deletedUserEmail: email,
+        deleterEmail: deleterEmail,
+        deletedAt: new Date().toISOString()
+      })
+    } catch (error) {
+      console.error('사용자 삭제 알림 발송 실패:', error)
+    }
+  }
+  
+  return c.json({ 
+    success: true, 
+    message: `사용자 ${deletedUser.name}가 성공적으로 삭제되었습니다. 평가 데이터는 보존됩니다.`,
+    deletedUser: {
+      name: deletedUser.name,
+      email: deletedUser.email,
+      role: deletedUser.role,
+      deletedAt: new Date().toISOString(),
+      deletedBy: deleterEmail
+    }
+  })
+})
+
 // 일괄 사용자 승인
 app.post('/api/users/bulk-approve', async (c) => {
   const { approverEmail } = await c.req.json()
@@ -747,6 +1160,263 @@ app.post('/api/users/bulk-approve', async (c) => {
     message: `총 ${approvedCount}명의 사용자가 승인되었습니다.`,
     approvedCount
   })
+})
+
+// ==================== 평가 시스템 API ====================
+
+// 정량평가 항목 조회
+app.get('/api/evaluation/quantitative', async (c) => {
+  const quantitativeItems = JSON.parse(globalThis.quantitativeEvaluationItems || '{}')
+  return c.json({ success: true, items: quantitativeItems })
+})
+
+// 정량평가 항목 저장/수정
+app.post('/api/evaluation/quantitative', async (c) => {
+  const { itemId, name, description, weight } = await c.req.json()
+  
+  if (!name || !description || !weight) {
+    return c.json({ success: false, message: '모든 필드를 입력해주세요.' }, 400)
+  }
+  
+  const quantitativeItems = JSON.parse(globalThis.quantitativeEvaluationItems || '{}')
+  const finalItemId = itemId || 'quant_' + Date.now()
+  
+  quantitativeItems[finalItemId] = {
+    id: finalItemId,
+    name,
+    description,
+    weight: parseInt(weight),
+    createdAt: quantitativeItems[finalItemId]?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }
+  
+  globalThis.quantitativeEvaluationItems = JSON.stringify(quantitativeItems)
+  
+  return c.json({ 
+    success: true, 
+    message: '정량평가 항목이 저장되었습니다.',
+    item: quantitativeItems[finalItemId]
+  })
+})
+
+// 정량평가 항목 삭제
+app.delete('/api/evaluation/quantitative/:itemId', async (c) => {
+  const itemId = c.req.param('itemId')
+  const quantitativeItems = JSON.parse(globalThis.quantitativeEvaluationItems || '{}')
+  
+  if (!quantitativeItems[itemId]) {
+    return c.json({ success: false, message: '평가 항목을 찾을 수 없습니다.' }, 404)
+  }
+  
+  delete quantitativeItems[itemId]
+  globalThis.quantitativeEvaluationItems = JSON.stringify(quantitativeItems)
+  
+  return c.json({ success: true, message: '정량평가 항목이 삭제되었습니다.' })
+})
+
+// 정성평가 항목 조회
+app.get('/api/evaluation/qualitative', async (c) => {
+  const qualitativeItems = JSON.parse(globalThis.qualitativeEvaluationItems || '{}')
+  return c.json({ success: true, items: qualitativeItems })
+})
+
+// 정성평가 항목 저장/수정
+app.post('/api/evaluation/qualitative', async (c) => {
+  const { itemId, name, description, scale } = await c.req.json()
+  
+  if (!name || !description || !scale) {
+    return c.json({ success: false, message: '모든 필드를 입력해주세요.' }, 400)
+  }
+  
+  const qualitativeItems = JSON.parse(globalThis.qualitativeEvaluationItems || '{}')
+  const finalItemId = itemId || 'qual_' + Date.now()
+  
+  qualitativeItems[finalItemId] = {
+    id: finalItemId,
+    name,
+    description,
+    scale,
+    createdAt: qualitativeItems[finalItemId]?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }
+  
+  globalThis.qualitativeEvaluationItems = JSON.stringify(qualitativeItems)
+  
+  return c.json({ 
+    success: true, 
+    message: '정성평가 항목이 저장되었습니다.',
+    item: qualitativeItems[finalItemId]
+  })
+})
+
+// 정성평가 항목 삭제
+app.delete('/api/evaluation/qualitative/:itemId', async (c) => {
+  const itemId = c.req.param('itemId')
+  const qualitativeItems = JSON.parse(globalThis.qualitativeEvaluationItems || '{}')
+  
+  if (!qualitativeItems[itemId]) {
+    return c.json({ success: false, message: '평가 항목을 찾을 수 없습니다.' }, 404)
+  }
+  
+  delete qualitativeItems[itemId]
+  globalThis.qualitativeEvaluationItems = JSON.stringify(qualitativeItems)
+  
+  return c.json({ success: true, message: '정성평가 항목이 삭제되었습니다.' })
+})
+
+// 평가 대상 설정 조회
+app.get('/api/evaluation/targets', async (c) => {
+  const evaluationTargets = JSON.parse(globalThis.evaluationTargets || '{}')
+  return c.json({ success: true, targets: evaluationTargets })
+})
+
+// 평가 대상 설정 저장/수정
+app.post('/api/evaluation/targets', async (c) => {
+  const { organization, cycle, specialItems } = await c.req.json()
+  
+  if (!organization || !cycle) {
+    return c.json({ success: false, message: '조직과 평가 주기를 선택해주세요.' }, 400)
+  }
+  
+  const evaluationTargets = JSON.parse(globalThis.evaluationTargets || '{}')
+  
+  evaluationTargets[organization] = {
+    organization,
+    cycle,
+    specialItems: specialItems || '',
+    createdAt: evaluationTargets[organization]?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }
+  
+  globalThis.evaluationTargets = JSON.stringify(evaluationTargets)
+  
+  return c.json({ 
+    success: true, 
+    message: '평가 대상 설정이 저장되었습니다.',
+    target: evaluationTargets[organization]
+  })
+})
+
+// Sales팀 2025 H2 목표 데이터 조회
+app.get('/api/evaluation/sales-targets', async (c) => {
+  // Sales팀의 2025 H2 목표 데이터 구조
+  const salesTargets = {
+    team: 'Sales팀',
+    period: '2025 H2',
+    totalTarget: 700000, // 천원 단위
+    members: [
+      {
+        name: '최민',
+        targets: {
+          general_saas: { // 일반 SaaS
+            july: 30000,
+            august: 35000,
+            september: 40000,
+            october: 45000,
+            november: 50000,
+            december: 55000
+          },
+          public_saas: { // 공공 SaaS  
+            july: 15000,
+            august: 20000,
+            september: 25000,
+            october: 30000,
+            november: 35000,
+            december: 40000
+          },
+          new_contracts: { // 신규 계약건수
+            july: 3,
+            august: 4,
+            september: 5,
+            october: 6,
+            november: 7,
+            december: 8
+          }
+        }
+      },
+      {
+        name: '김다민',
+        targets: {
+          general_saas: {
+            july: 25000,
+            august: 30000,
+            september: 35000,
+            october: 40000,
+            november: 45000,
+            december: 50000
+          },
+          public_saas: {
+            july: 10000,
+            august: 15000,
+            september: 20000,
+            october: 25000,
+            november: 30000,
+            december: 35000
+          },
+          new_contracts: {
+            july: 2,
+            august: 3,
+            september: 4,
+            october: 5,
+            november: 6,
+            december: 7
+          }
+        }
+      },
+      {
+        name: '박진희',
+        targets: {
+          general_saas: {
+            july: 20000,
+            august: 25000,
+            september: 30000,
+            october: 35000,
+            november: 40000,
+            december: 45000
+          },
+          public_saas: {
+            july: 8000,
+            august: 12000,
+            september: 16000,
+            october: 20000,
+            november: 25000,
+            december: 30000
+          },
+          new_contracts: {
+            july: 2,
+            august: 2,
+            september: 3,
+            october: 4,
+            november: 5,
+            december: 6
+          }
+        }
+      }
+    ]
+  }
+  
+  return c.json({ success: true, salesTargets })
+})
+
+// 평가 설정 전체 조회
+app.get('/api/evaluation/settings', async (c) => {
+  const quantitativeItems = JSON.parse(globalThis.quantitativeEvaluationItems || '{}')
+  const qualitativeItems = JSON.parse(globalThis.qualitativeEvaluationItems || '{}')
+  const evaluationTargets = JSON.parse(globalThis.evaluationTargets || '{}')
+  
+  return c.json({ 
+    success: true, 
+    settings: {
+      quantitative: quantitativeItems,
+      qualitative: qualitativeItems,
+      targets: evaluationTargets
+    }
+  })
+})
+
+// Favicon 처리 - 단순 빈 응답
+app.get('/favicon.ico', (c) => {
+  return c.text('', 204)
 })
 
 // 로그인 페이지 (메인 경로)
@@ -829,25 +1499,37 @@ app.get('/', (c) => {
                 <!-- 회원가입 폼 -->
                 <div id="signupContent" class="hidden p-8 space-y-6">
                     <form id="signupForm" class="space-y-4">
+                        <div>
+                            <label for="signupName" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-user mr-2"></i>이름
+                            </label>
+                            <input type="text" id="signupName" name="name" required 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                   placeholder="이름을 입력하세요">
+                        </div>
+                        
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label for="signupName" class="block text-sm font-medium text-gray-700 mb-2">
-                                    <i class="fas fa-user mr-2"></i>이름
+                                <label for="signupTeam" class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-users mr-2"></i>소속 팀
                                 </label>
-                                <input type="text" id="signupName" name="name" required 
-                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                                       placeholder="이름을 입력하세요">
+                                <select id="signupTeam" name="team" required
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                        onchange="updatePartOptions()">
+                                    <option value="">팀을 선택하세요</option>
+                                    <option value="org_sales">Sales팀</option>
+                                    <option value="org_cx">CX팀</option>
+                                </select>
                             </div>
                             
                             <div>
-                                <label for="signupRole" class="block text-sm font-medium text-gray-700 mb-2">
-                                    <i class="fas fa-user-tag mr-2"></i>권한
+                                <label for="signupPart" class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-briefcase mr-2"></i>소속 파트
                                 </label>
-                                <select id="signupRole" name="role" 
-                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
-                                    <option value="user">일반 사용자 (평가 대상자)</option>
-                                    <option value="admin">관리자 (시스템 관리 전용)</option>
-                                    <option value="admin_user">관리자겸사용자 (팀장, 관리자 권한 + 평가 대상자)</option>
+                                <select id="signupPart" name="part" required
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                                        disabled>
+                                    <option value="">먼저 팀을 선택하세요</option>
                                 </select>
                             </div>
                         </div>
@@ -886,10 +1568,10 @@ app.get('/', (c) => {
                     </form>
 
                     <!-- 회원가입 안내 -->
-                    <div class="bg-blue-50 rounded-lg p-4">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                         <p class="text-sm text-blue-700">
                             <i class="fas fa-info-circle mr-2"></i>
-                            회원가입 후 즉시 로그인하여 시스템을 이용할 수 있습니다.
+                            회원가입 신청 후 <strong>관리자 승인</strong>을 받아야 로그인이 가능합니다.
                         </p>
                     </div>
                 </div>
@@ -907,6 +1589,28 @@ app.get('/', (c) => {
         </div>
 
         <script>
+            // 파트 옵션 업데이트 함수
+            function updatePartOptions() {
+                const teamSelect = document.getElementById('signupTeam');
+                const partSelect = document.getElementById('signupPart');
+                const selectedTeam = teamSelect.value;
+                
+                // 파트 옵션 초기화
+                partSelect.innerHTML = '<option value="">파트를 선택하세요</option>';
+                partSelect.disabled = !selectedTeam;
+                
+                if (selectedTeam === 'org_sales') {
+                    partSelect.innerHTML += '<option value="org_sales_sales">영업</option>';
+                    partSelect.innerHTML += '<option value="org_sales_management">영업관리</option>';
+                } else if (selectedTeam === 'org_cx') {
+                    partSelect.innerHTML += '<option value="org_cx_customer_service">고객서비스</option>';
+                    partSelect.innerHTML += '<option value="org_cx_tech_support">기술지원</option>';
+                    partSelect.innerHTML += '<option value="org_cx_tech_writing">Technical Writing</option>';
+                    partSelect.innerHTML += '<option value="org_cx_tech_marketing">Technical Marketing</option>';
+                    partSelect.innerHTML += '<option value="org_cx_business_ops">사업운영</option>';
+                }
+            }
+            
             // 탭 전환 함수
             function switchTab(tab) {
                 const loginTab = document.getElementById('loginTab');
@@ -975,6 +1679,15 @@ app.get('/', (c) => {
                     if (data.success) {
                         localStorage.setItem('user', JSON.stringify(data.user));
                         showMessage('로그인 성공! 대시보드로 이동합니다...', 'success');
+                        
+                        // 관리자인 경우 대시보드 통계 즉시 업데이트
+                        if (data.user.role === 'admin' && typeof updateDashboardStats === 'function') {
+                            console.log('👑 관리자 로그인 - 대시보드 통계 업데이트 시작');
+                            setTimeout(() => {
+                                updateDashboardStats();
+                            }, 500);
+                        }
+                        
                         setTimeout(() => window.location.href = '/dashboard', 1500);
                     } else {
                         showMessage(data.message, 'error');
@@ -995,12 +1708,23 @@ app.get('/', (c) => {
                 const email = document.getElementById('signupEmail').value;
                 const password = document.getElementById('signupPassword').value;
                 const confirmPassword = document.getElementById('signupConfirmPassword').value;
-                const role = document.getElementById('signupRole').value;
+                const team = document.getElementById('signupTeam').value;
+                const part = document.getElementById('signupPart').value;
                 const signupBtn = document.getElementById('signupBtn');
                 
                 // 클라이언트 유효성 검사
                 if (password !== confirmPassword) {
                     showMessage('비밀번호가 일치하지 않습니다.', 'error');
+                    return;
+                }
+                
+                if (!team) {
+                    showMessage('소속 팀을 선택해 주세요.', 'error');
+                    return;
+                }
+                
+                if (!part) {
+                    showMessage('소속 파트를 선택해 주세요.', 'error');
                     return;
                 }
                 
@@ -1018,20 +1742,21 @@ app.get('/', (c) => {
                     const response = await fetch('/api/signup', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ name, email, password, confirmPassword, role })
+                        body: JSON.stringify({ name, email, password, confirmPassword, team, part, role: 'user' })
                     });
                     
                     const data = await response.json();
                     
                     if (data.success) {
-                        showMessage('회원가입이 완료되었습니다! 로그인해 주세요.', 'success');
+                        showMessage('회원가입 신청이 완료되었습니다! 승인 완료 시 ' + data.user.email + '로 알림을 발송합니다.', 'success');
                         
-                        // 3초 후 로그인 탭으로 전환하고 이메일 자동 입력
+                        // 3초 후 폼 초기화
                         setTimeout(() => {
-                            switchTab('login');
-                            document.getElementById('loginEmail').value = email;
                             document.getElementById('signupForm').reset();
-                        }, 2000);
+                            // 파트 드롭다운 비활성화
+                            document.getElementById('signupPart').disabled = true;
+                            document.getElementById('signupPart').innerHTML = '<option value="">먼저 팀을 선택하세요</option>';
+                        }, 3000);
                     } else {
                         showMessage(data.message, 'error');
                     }
@@ -1068,10 +1793,202 @@ app.get('/dashboard', (c) => {
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
         <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
         
-        <!-- Custom Styles -->
-        <link href="/css/main.css" rel="stylesheet">
+        <!-- Application JavaScript Modules -->
+        <script src="/js/app.js"></script>
+        <script src="/js/evaluationManagement.js"></script>
+        <script src="/js/userManagement.js"></script>
+        
+        <style>
+            .settings-content { display: none; }
+            .settings-content.active { display: block; }
+            .notification {
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 1000;
+                transition: all 0.3s ease-in-out;
+            }
+
+            /* 새로운 평가 시스템 UI 스타일 */
+            .evaluation-tab-content {
+                animation: fadeIn 0.3s ease-in-out;
+            }
+
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+
+            .evaluation-item-card {
+                transition: all 0.2s ease-in-out;
+            }
+
+            .evaluation-item-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            }
+
+            .evaluation-type-card {
+                transition: all 0.2s ease-in-out;
+                cursor: pointer;
+            }
+
+            .evaluation-type-card:hover {
+                transform: scale(1.02);
+            }
+
+            .wizard-step {
+                min-height: 300px;
+            }
+
+            .assignment-item {
+                transition: all 0.2s ease-in-out;
+            }
+
+            .assignment-item:hover {
+                background-color: #f8fafc;
+                border-color: #cbd5e1;
+            }
+
+            /* 드래그 앤 드롭 스타일 */
+            .assignment-item[draggable="true"]:active {
+                opacity: 0.7;
+                transform: rotate(5deg);
+            }
+
+            #assignmentDropZone {
+                transition: all 0.2s ease-in-out;
+            }
+
+            #assignmentDropZone.drag-over {
+                background-color: #eff6ff;
+                border-color: #3b82f6;
+                transform: scale(1.02);
+            }
+
+            /* 반응형 디자인 */
+            @media (max-width: 768px) {
+                .evaluation-tab-content .grid {
+                    grid-template-columns: 1fr !important;
+                }
+                
+                .wizard-step {
+                    min-height: 200px;
+                }
+                
+                #evaluationWizardModal .max-w-2xl {
+                    max-width: 95vw;
+                    margin: 20px;
+                }
+                
+                #assignmentModal .max-w-4xl {
+                    max-width: 95vw;
+                    margin: 20px;
+                }
+                
+                .evaluation-item-card {
+                    margin-bottom: 0.75rem;
+                }
+                
+                /* 탭 버튼 모바일 최적화 */
+                .flex.border-b .flex-1 {
+                    padding: 12px 8px;
+                    font-size: 0.875rem;
+                }
+                
+                .flex.border-b .flex-1 i {
+                    display: none;
+                }
+            }
+
+            @media (max-width: 640px) {
+                .grid.grid-cols-2 {
+                    grid-template-columns: 1fr !important;
+                }
+                
+                .grid.grid-cols-3 {
+                    grid-template-columns: 1fr !important;
+                }
+                
+                .grid.grid-cols-4 {
+                    grid-template-columns: repeat(2, 1fr) !important;
+                }
+                
+                /* 모바일에서 플렉스 버튼들 */
+                .flex.space-x-3 {
+                    flex-direction: column !important;
+                    gap: 0.75rem;
+                }
+                
+                .flex.space-x-3 > * {
+                    width: 100% !important;
+                }
+            }
+
+            /* 진행 표시기 애니메이션 */
+            .wizard-progress-active {
+                animation: pulse 2s infinite;
+                background: linear-gradient(45deg, #ffffff, #e5e7eb);
+            }
+
+            @keyframes pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.8; }
+            }
+
+            /* 드래그 상태 시각 효과 */
+            .drag-preview {
+                opacity: 0.8;
+                transform: rotate(5deg) scale(1.1);
+                z-index: 1000;
+                pointer-events: none;
+            }
+
+            /* 성공/오류 상태 스타일 */
+            .success-glow {
+                box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+                border-color: #22c55e !important;
+            }
+
+            .error-glow {
+                box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+                border-color: #ef4444 !important;
+            }
+
+            /* 로딩 애니메이션 */
+            .loading-dots::after {
+                content: '...';
+                animation: dots 2s infinite;
+            }
+
+            @keyframes dots {
+                0%, 20% { content: '.'; }
+                40% { content: '..'; }
+                60%, 100% { content: '...'; }
+            }
+
+            /* 스크롤바 스타일링 */
+            .custom-scrollbar::-webkit-scrollbar {
+                width: 6px;
+            }
+
+            .custom-scrollbar::-webkit-scrollbar-track {
+                background: #f1f5f9;
+                border-radius: 10px;
+            }
+
+            .custom-scrollbar::-webkit-scrollbar-thumb {
+                background: #cbd5e1;
+                border-radius: 10px;
+            }
+
+            .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                background: #94a3b8;
+            }
+        </style>
     </head>
     <body class="bg-gray-50 text-gray-800">
+
         <div class="min-h-screen">
             <!-- Header -->
             <header class="bg-white shadow-sm border-b border-gray-200">
@@ -1224,7 +2141,10 @@ app.get('/dashboard', (c) => {
                                 <div class="flex items-center justify-between">
                                     <div>
                                         <p class="text-sm text-gray-600">전체 회원수</p>
-                                        <p class="text-2xl font-bold text-blue-600" id="adminTotalUsers">0</p>
+                                        <p class="text-2xl font-bold text-blue-600" id="adminTotalUsers">${(() => {
+                                          const users = JSON.parse(globalThis.userDatabase || '{}')
+                                          return Object.keys(users).length
+                                        })()}</p>
                                     </div>
                                     <i class="fas fa-users text-blue-600 text-2xl"></i>
                                 </div>
@@ -1234,7 +2154,10 @@ app.get('/dashboard', (c) => {
                                 <div class="flex items-center justify-between">
                                     <div>
                                         <p class="text-sm text-gray-600">승인 대기</p>
-                                        <p class="text-2xl font-bold text-yellow-600" id="adminPendingUsers">0</p>
+                                        <p class="text-2xl font-bold text-yellow-600" id="adminPendingUsers">${(() => {
+                                          const users = JSON.parse(globalThis.userDatabase || '{}')
+                                          return Object.values(users).filter(user => user?.status === 'pending').length
+                                        })()}</p>
                                     </div>
                                     <i class="fas fa-user-clock text-yellow-600 text-2xl"></i>
                                 </div>
@@ -1263,7 +2186,7 @@ app.get('/dashboard', (c) => {
 
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <!-- 최근 회원 가입 -->
-                            <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onclick="showTab('systemSettings'); showSettingsTab('users');">
+                            <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onclick="showTab('systemSettings'); setTimeout(() => showSettingsTab('users'), 100);">
                                 <div class="flex items-center justify-between mb-4">
                                     <h3 class="text-lg font-semibold text-gray-900">
                                         <i class="fas fa-user-plus text-blue-500 mr-2"></i>최근 가입 승인 요청
@@ -1504,167 +2427,217 @@ app.get('/dashboard', (c) => {
                             </div>
                         </div>
 
-                        <!-- 평가 유형 설정 -->
+                        <!-- 평가 유형 설정 - 개선된 UI/UX -->
                         <div id="evaluationSettings" class="settings-content hidden">
-                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                <!-- 정량평가 설정 -->
-                                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                                    <h3 class="text-lg font-semibold text-gray-900 mb-4">
-                                        <i class="fas fa-chart-bar text-blue-500 mr-2"></i>정량평가 항목
-                                    </h3>
-                                    
-                                    <div class="space-y-3 mb-4">
-                                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                            <div>
-                                                <span class="font-medium">목표 달성률</span>
-                                                <p class="text-sm text-gray-600">개인 목표 대비 달성 비율 (%)</p>
-                                            </div>
-                                            <div class="flex items-center space-x-2">
-                                                <span class="text-sm text-gray-500">가중치: 40%</span>
-                                                <button class="text-blue-600 hover:text-blue-800">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                            <div>
-                                                <span class="font-medium">KPI 성과</span>
-                                                <p class="text-sm text-gray-600">핵심성과지표 달성도 (1-5점)</p>
-                                            </div>
-                                            <div class="flex items-center space-x-2">
-                                                <span class="text-sm text-gray-500">가중치: 35%</span>
-                                                <button class="text-blue-600 hover:text-blue-800">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                            <div>
-                                                <span class="font-medium">프로젝트 기여도</span>
-                                                <p class="text-sm text-gray-600">프로젝트 성공도 및 기여 수준</p>
-                                            </div>
-                                            <div class="flex items-center space-x-2">
-                                                <span class="text-sm text-gray-500">가중치: 25%</span>
-                                                <button class="text-blue-600 hover:text-blue-800">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <button class="w-full bg-blue-100 text-blue-700 py-2 rounded-lg font-medium hover:bg-blue-200 transition-colors">
-                                        <i class="fas fa-plus mr-2"></i>새 항목 추가
+                            <!-- 상단 네비게이션 탭 -->
+                            <div class="bg-white rounded-lg border border-gray-200 shadow-sm mb-6">
+                                <div class="flex border-b border-gray-200">
+                                    <button onclick="switchEvaluationTab('dashboard')" id="tab-dashboard" class="flex-1 px-6 py-4 text-center font-medium text-blue-600 bg-blue-50 border-b-2 border-blue-500">
+                                        <i class="fas fa-tachometer-alt mr-2"></i>평가 대시보드
                                     </button>
-                                </div>
-
-                                <!-- 정성평가 설정 -->
-                                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                                    <h3 class="text-lg font-semibold text-gray-900 mb-4">
-                                        <i class="fas fa-comments text-green-500 mr-2"></i>정성평가 항목
-                                    </h3>
-                                    
-                                    <div class="space-y-3 mb-4">
-                                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                            <div>
-                                                <span class="font-medium">리더십</span>
-                                                <p class="text-sm text-gray-600">팀을 이끄는 능력과 영향력</p>
-                                            </div>
-                                            <div class="flex items-center space-x-2">
-                                                <span class="text-sm text-gray-500">1-5점</span>
-                                                <button class="text-blue-600 hover:text-blue-800">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                            <div>
-                                                <span class="font-medium">의사소통</span>
-                                                <p class="text-sm text-gray-600">명확하고 효과적인 커뮤니케이션</p>
-                                            </div>
-                                            <div class="flex items-center space-x-2">
-                                                <span class="text-sm text-gray-500">1-5점</span>
-                                                <button class="text-blue-600 hover:text-blue-800">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                            <div>
-                                                <span class="font-medium">전문성</span>
-                                                <p class="text-sm text-gray-600">직무 관련 지식과 기술 수준</p>
-                                            </div>
-                                            <div class="flex items-center space-x-2">
-                                                <span class="text-sm text-gray-500">1-5점</span>
-                                                <button class="text-blue-600 hover:text-blue-800">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                            <div>
-                                                <span class="font-medium">협업 능력</span>
-                                                <p class="text-sm text-gray-600">팀워크와 상호 협력 정도</p>
-                                            </div>
-                                            <div class="flex items-center space-x-2">
-                                                <span class="text-sm text-gray-500">1-5점</span>
-                                                <button class="text-blue-600 hover:text-blue-800">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <button class="w-full bg-green-100 text-green-700 py-2 rounded-lg font-medium hover:bg-green-200 transition-colors">
-                                        <i class="fas fa-plus mr-2"></i>새 항목 추가
+                                    <button onclick="switchEvaluationTab('items')" id="tab-items" class="flex-1 px-6 py-4 text-center font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50">
+                                        <i class="fas fa-list-alt mr-2"></i>평가 항목 관리
+                                    </button>
+                                    <button onclick="switchEvaluationTab('assignment')" id="tab-assignment" class="flex-1 px-6 py-4 text-center font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50">
+                                        <i class="fas fa-users-cog mr-2"></i>평가 배정
+                                    </button>
+                                    <button onclick="switchEvaluationTab('preview')" id="tab-preview" class="flex-1 px-6 py-4 text-center font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50">
+                                        <i class="fas fa-eye mr-2"></i>미리보기
                                     </button>
                                 </div>
                             </div>
-                            
-                            <!-- 평가 방식 설정 -->
-                            <div class="mt-6 bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                                <h3 class="text-lg font-semibold text-gray-900 mb-4">
-                                    <i class="fas fa-sliders-h text-purple-500 mr-2"></i>평가 방식 설정
-                                </h3>
-                                
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">평가 비율</label>
-                                        <div class="space-y-2">
-                                            <div class="flex justify-between">
-                                                <span class="text-sm">정량평가</span>
-                                                <span class="text-sm font-semibold">60%</span>
+
+                            <!-- 평가 대시보드 탭 -->
+                            <div id="evaluation-dashboard" class="evaluation-tab-content">
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                                    <!-- 정량평가 요약 -->
+                                    <div class="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-lg border border-blue-200">
+                                        <div class="flex items-center justify-between">
+                                            <div>
+                                                <h3 class="text-lg font-semibold text-blue-900">정량평가 항목</h3>
+                                                <p class="text-3xl font-bold text-blue-600 mt-2" id="quantitativeCount">3</p>
+                                                <p class="text-sm text-blue-700">총 가중치: <span id="quantitativeWeight">100%</span></p>
                                             </div>
-                                            <div class="flex justify-between">
-                                                <span class="text-sm">정성평가</span>
-                                                <span class="text-sm font-semibold">40%</span>
+                                            <i class="fas fa-chart-bar text-blue-400 text-3xl"></i>
+                                        </div>
+                                        <button onclick="switchEvaluationTab('items')" class="mt-4 w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                                            항목 관리
+                                        </button>
+                                    </div>
+
+                                    <!-- 정성평가 요약 -->
+                                    <div class="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-lg border border-green-200">
+                                        <div class="flex items-center justify-between">
+                                            <div>
+                                                <h3 class="text-lg font-semibold text-green-900">정성평가 항목</h3>
+                                                <p class="text-3xl font-bold text-green-600 mt-2" id="qualitativeCount">4</p>
+                                                <p class="text-sm text-green-700">평가 방식: <span id="qualitativeScale">1-5점</span></p>
                                             </div>
-                                            <button class="text-sm text-blue-600 hover:text-blue-800">비율 조정</button>
+                                            <i class="fas fa-comments text-green-400 text-3xl"></i>
+                                        </div>
+                                        <button onclick="switchEvaluationTab('items')" class="mt-4 w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors">
+                                            항목 관리
+                                        </button>
+                                    </div>
+
+                                    <!-- 조직 배정 현황 -->
+                                    <div class="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-lg border border-purple-200">
+                                        <div class="flex items-center justify-between">
+                                            <div>
+                                                <h3 class="text-lg font-semibold text-purple-900">조직별 배정</h3>
+                                                <p class="text-3xl font-bold text-purple-600 mt-2" id="assignmentCount">2</p>
+                                                <p class="text-sm text-purple-700">Sales팀, CX팀</p>
+                                            </div>
+                                            <i class="fas fa-sitemap text-purple-400 text-3xl"></i>
+                                        </div>
+                                        <button onclick="switchEvaluationTab('assignment')" class="mt-4 w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition-colors">
+                                            배정 관리
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Sales팀 2025 H2 목표 현황 -->
+                                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <h3 class="text-lg font-semibold text-gray-900">
+                                            <i class="fas fa-chart-line text-orange-500 mr-2"></i>Sales팀 2025 H2 목표 현황
+                                        </h3>
+                                        <button onclick="loadSalesTargets()" class="px-4 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors">
+                                            <i class="fas fa-sync-alt mr-2"></i>목표 데이터 새로고침
+                                        </button>
+                                    </div>
+                                    
+                                    <div id="salesTargetsContainer" class="space-y-4">
+                                        <div class="text-center py-8 text-gray-500">
+                                            <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                                            <p>Sales팀 목표 데이터를 불러오는 중...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 평가 항목 관리 탭 -->
+                            <div id="evaluation-items" class="evaluation-tab-content hidden">
+                                <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                                    <!-- 정량평가 항목 관리 -->
+                                    <div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+                                        <div class="bg-gradient-to-r from-blue-500 to-blue-600 p-4 rounded-t-lg">
+                                            <div class="flex items-center justify-between">
+                                                <h3 class="text-lg font-semibold text-white">
+                                                    <i class="fas fa-chart-bar mr-2"></i>정량평가 항목
+                                                </h3>
+                                                <button onclick="startEvaluationWizard('quantitative')" class="bg-white bg-opacity-20 text-white px-4 py-2 rounded-lg hover:bg-opacity-30 transition-colors">
+                                                    <i class="fas fa-magic mr-2"></i>마법사로 추가
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="p-4">
+                                            <div id="quantitativeItemsGrid" class="space-y-3 mb-4">
+                                                <!-- 동적으로 채워짐 -->
+                                            </div>
+                                            
+                                            <button onclick="quickAddQuantitativeItem()" class="w-full bg-blue-50 text-blue-700 py-3 rounded-lg font-medium hover:bg-blue-100 transition-colors border-2 border-dashed border-blue-300">
+                                                <i class="fas fa-plus mr-2"></i>빠른 추가
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- 정성평가 항목 관리 -->
+                                    <div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+                                        <div class="bg-gradient-to-r from-green-500 to-green-600 p-4 rounded-t-lg">
+                                            <div class="flex items-center justify-between">
+                                                <h3 class="text-lg font-semibold text-white">
+                                                    <i class="fas fa-comments mr-2"></i>정성평가 항목
+                                                </h3>
+                                                <button onclick="startEvaluationWizard('qualitative')" class="bg-white bg-opacity-20 text-white px-4 py-2 rounded-lg hover:bg-opacity-30 transition-colors">
+                                                    <i class="fas fa-magic mr-2"></i>마법사로 추가
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="p-4">
+                                            <div id="qualitativeItemsGrid" class="space-y-3 mb-4">
+                                                <!-- 동적으로 채워짐 -->
+                                            </div>
+                                            
+                                            <button onclick="quickAddQualitativeItem()" class="w-full bg-green-50 text-green-700 py-3 rounded-lg font-medium hover:bg-green-100 transition-colors border-2 border-dashed border-green-300">
+                                                <i class="fas fa-plus mr-2"></i>빠른 추가
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 평가 배정 탭 -->
+                            <div id="evaluation-assignment" class="evaluation-tab-content hidden">
+                                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    <!-- 조직 구조 -->
+                                    <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                        <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                                            <i class="fas fa-sitemap mr-2"></i>조직 구조
+                                        </h3>
+                                        <div id="organizationTree" class="space-y-2">
+                                            <!-- 동적으로 채워짐 -->
+                                        </div>
+                                    </div>
+
+                                    <!-- 평가 항목 풀 -->
+                                    <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                        <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                                            <i class="fas fa-list-alt mr-2"></i>평가 항목 풀
+                                        </h3>
+                                        <div class="space-y-3">
+                                            <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                                                <h4 class="font-medium text-blue-900 mb-2">정량평가</h4>
+                                                <div id="quantitativePool" class="space-y-1">
+                                                    <!-- 드래그 가능한 항목들 -->
+                                                </div>
+                                            </div>
+                                            <div class="bg-green-50 p-3 rounded-lg border border-green-200">
+                                                <h4 class="font-medium text-green-900 mb-2">정성평가</h4>
+                                                <div id="qualitativePool" class="space-y-1">
+                                                    <!-- 드래그 가능한 항목들 -->
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 배정 결과 -->
+                                    <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                        <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                                            <i class="fas fa-clipboard-list mr-2"></i>배정 현황
+                                        </h3>
+                                        <div id="assignmentResult" class="space-y-3">
+                                            <!-- 드롭 영역 -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 미리보기 탭 -->
+                            <div id="evaluation-preview" class="evaluation-tab-content hidden">
+                                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                    <div class="flex items-center justify-between mb-6">
+                                        <h3 class="text-lg font-semibold text-gray-900">
+                                            <i class="fas fa-eye mr-2"></i>평가 시뮬레이션
+                                        </h3>
+                                        <div class="flex space-x-3">
+                                            <select id="previewOrganization" class="px-3 py-2 border border-gray-300 rounded-lg">
+                                                <option value="sales_team">Sales팀</option>
+                                                <option value="cx_team">CX팀</option>
+                                            </select>
+                                            <button onclick="runEvaluationPreview()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                                                <i class="fas fa-play mr-2"></i>시뮬레이션 실행
+                                            </button>
                                         </div>
                                     </div>
                                     
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">평가 등급</label>
-                                        <div class="space-y-1 text-sm">
-                                            <div>S등급 (90-100점)</div>
-                                            <div>A등급 (80-89점)</div>
-                                            <div>B등급 (70-79점)</div>
-                                            <div>C등급 (60-69점)</div>
-                                            <div>D등급 (60점 미만)</div>
+                                    <div id="previewResult" class="min-h-96">
+                                        <div class="text-center py-12 text-gray-500">
+                                            <i class="fas fa-play-circle text-4xl mb-4"></i>
+                                            <p>시뮬레이션을 실행해보세요</p>
                                         </div>
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">평가 주기</label>
-                                        <select class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                            <option value="quarterly">분기별 (3개월)</option>
-                                            <option value="semiannual">반기별 (6개월)</option>
-                                            <option value="annual">연간 (12개월)</option>
-                                        </select>
                                     </div>
                                 </div>
                             </div>
@@ -2298,6 +3271,11 @@ app.get('/dashboard', (c) => {
                             loadUserStatusManagement();
                         }
                         break;
+                    case 'dashboard':
+                        if (typeof updateDashboardStats === 'function') {
+                            updateDashboardStats(); // 대시보드 통계 업데이트
+                        }
+                        break;
                 }
             }
             
@@ -2799,83 +3777,99 @@ app.get('/dashboard', (c) => {
             }
 
             // 메인 탭 전환 함수를 전역으로 정의하여 onclick에서 사용 가능하게 함
-            window.showTab = function(tabName) {
-                console.log('showTab 호출:', tabName);
-                
-                // 권한 확인
-                const user = JSON.parse(localStorage.getItem('user') || '{}');
-                if (tabName === 'systemSettings' && user.role !== 'admin') {
-                    alert('관리자 권한이 필요한 메뉴입니다.');
-                    return;
-                }
-                
-                // 모든 탭 콘텐츠 숨기기
-                const allTabContents = document.querySelectorAll('.tab-content');
-                allTabContents.forEach(content => {
-                    content.classList.add('hidden');
-                    content.classList.remove('active');
-                });
-                
-                // 모든 탭 버튼 비활성화
-                const allTabButtons = document.querySelectorAll('.tab-button');
-                allTabButtons.forEach(button => {
-                    button.classList.remove('active');
-                    button.classList.remove('bg-gray-100', 'text-gray-900');
-                    button.classList.add('text-gray-600');
-                });
-                
-                // 선택된 탭 콘텐츠 표시
-                const targetContent = document.getElementById(tabName);
-                if (targetContent) {
-                    targetContent.classList.remove('hidden');
-                    targetContent.classList.add('active');
-                }
-                
-                // 선택된 탭 버튼 활성화 (이벤트가 있을 때만)
-                if (event && event.target) {
-                    const activeButton = event.target.closest('button');
-                    if (activeButton) {
-                        activeButton.classList.add('active', 'bg-gray-100', 'text-gray-900');
-                        activeButton.classList.remove('text-gray-600');
+            window.showTabReal = function(tabName, event = null) {
+                try {
+                    console.log('🔄 showTab 호출:', tabName);
+                    
+                    // 권한 확인
+                    const user = JSON.parse(localStorage.getItem('user') || '{}');
+                    if (tabName === 'systemSettings' && user.role !== 'admin') {
+                        alert('관리자 권한이 필요한 메뉴입니다.');
+                        return;
                     }
-                }
-                
-                // 특별한 탭 처리
-                switch(tabName) {
-                    case 'dashboard':
-                        // 대시보드는 권한에 따라 다른 내용 표시
-                        const dashboardContent = document.getElementById('dashboard');
-                        if (dashboardContent && user.role === 'admin') {
-                            // 관리자 대시보드 로드 로직
-                            console.log('관리자 대시보드 로드');
-                        } else if (dashboardContent) {
-                            // 일반 사용자 대시보드 로드 로직  
-                            console.log('사용자 대시보드 로드');
+                    
+                    // 모든 탭 콘텐츠 숨기기
+                    const allTabContents = document.querySelectorAll('.tab-content');
+                    allTabContents.forEach(content => {
+                        if (content) {
+                            content.classList.add('hidden');
+                            content.classList.remove('active');
                         }
-                        break;
-                        
-                    case 'systemSettings':
-                        // 시스템 설정은 기본적으로 조직 설정 탭 표시
-                        setTimeout(() => {
-                            if (typeof window.showSettingsTab === 'function') {
-                                window.showSettingsTab('organization');
-                            }
-                        }, 100);
-                        break;
-                }
+                    });
+                    
+                    // 모든 탭 버튼 비활성화
+                    const allTabButtons = document.querySelectorAll('.tab-button');
+                    allTabButtons.forEach(button => {
+                        if (button) {
+                            button.classList.remove('active');
+                            button.classList.remove('bg-gray-100', 'text-gray-900');
+                            button.classList.add('text-gray-600');
+                        }
+                    });
+                });
                 
-                console.log('탭 전환 완료:', tabName);
+                    // 선택된 탭 콘텐츠 표시
+                    const targetContent = document.getElementById(tabName);
+                    if (targetContent) {
+                        targetContent.classList.remove('hidden');
+                        targetContent.classList.add('active');
+                        console.log('✅ 탭 콘텐츠 표시:', tabName);
+                    } else {
+                        console.warn('⚠️ 탭 콘텐츠를 찾을 수 없음:', tabName);
+                    }
+                    
+                    // 선택된 탭 버튼 활성화 (이벤트가 있을 때만)
+                    if (event && event.target) {
+                        const activeButton = event.target.closest('button');
+                        if (activeButton) {
+                            activeButton.classList.add('active', 'bg-gray-100', 'text-gray-900');
+                            activeButton.classList.remove('text-gray-600');
+                        }
+                    }
+                    
+                    // 특별한 탭 처리
+                    switch(tabName) {
+                        case 'dashboard':
+                            // 대시보드는 권한에 따라 다른 내용 표시
+                            const dashboardContent = document.getElementById('dashboard');
+                            if (dashboardContent && user.role === 'admin') {
+                                // 관리자 대시보드 로드 로직
+                                console.log('📊 관리자 대시보드 로드');
+                            } else if (dashboardContent) {
+                                // 일반 사용자 대시보드 로드 로직  
+                                console.log('👤 사용자 대시보드 로드');
+                            }
+                            break;
+                            
+                        case 'systemSettings':
+                            // 시스템 설정은 기본적으로 조직 설정 탭 표시
+                            setTimeout(() => {
+                                try {
+                                    if (typeof window.showSettingsTabReal === 'function') {
+                                        window.showSettingsTabReal('organization');
+                                    } else if (typeof window.showSettingsTab === 'function') {
+                                        window.showSettingsTab('organization');
+                                    }
+                                } catch (error) {
+                                    console.error('❌ 시스템 설정 탭 로드 오류:', error);
+                                }
+                            }, 100);
+                            break;
+                    }
+                    
+                    console.log('✅ 탭 전환 완료:', tabName);
+                } catch (error) {
+                    console.error('❌ showTab 오류:', error);
+                }
             }
         </script>
 
-        <!-- 인라인 JavaScript - 로딩 순서 문제 해결 -->
+        <!-- 🧰 Core Utils - 기본 유틸리티 -->
         <script>
-        // 유틸리티 함수들
+        // Toast 메시지 시스템
         window.showToast = function(message, type = 'info') {
             const existingToast = document.querySelector('.toast-message');
-            if (existingToast) {
-                existingToast.remove();
-            }
+            if (existingToast) existingToast.remove();
             
             const toast = document.createElement('div');
             toast.className = 'toast-message fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 max-w-sm';
@@ -2889,376 +3883,506 @@ app.get('/dashboard', (c) => {
             
             toast.className += ' ' + (colors[type] || colors.info);
             toast.innerHTML = '<i class="fas fa-info-circle mr-2"></i>' + message;
-            
             document.body.appendChild(toast);
-            
-            setTimeout(() => {
-                toast.remove();
-            }, 3000);
+            setTimeout(() => toast.remove(), 3000);
         };
 
-        // 관리자 권한 체크
+        // 권한 체크
         window.isAdmin = function() {
             const user = JSON.parse(localStorage.getItem('user') || '{}');
             return user.role === 'admin' || user.role === 'admin_user';
         };
 
-        // 데이터베이스 관련 함수들
+        // 현재 사용자 정보 가져오기
+        window.getCurrentUser = function() {
+            return JSON.parse(localStorage.getItem('user') || '{}');
+        };
+
+        console.log('✅ Core Utils 로드됨');
+        </script>
+
+        <!-- 🔐 Auth & Data Management - 인증 및 데이터 관리 -->
+        <script>
+        // 데이터 로드 함수들
         async function loadFromDatabase() {
             console.log('📖 데이터베이스에서 로드 중...');
-            // 현재는 LocalStorage 사용
-            loadFromStorage();
+            loadFromStorage(); // 현재는 LocalStorage 사용
         }
 
         function loadFromStorage() {
             console.log('📖 LocalStorage에서 로드 중...');
-            // 조직 데이터 로드
             const orgData = localStorage.getItem('organizationData');
-            if (orgData) {
-                window.organizationData = JSON.parse(orgData);
-            } else {
-                window.organizationData = {};
-            }
+            window.organizationData = orgData ? JSON.parse(orgData) : {};
         }
 
-        // 설정 탭 전환 함수
-        window.showSettingsTab = function(tabName) {
-            console.log('Settings tab switching to:', tabName);
-            
-            // 모든 설정 탭 숨기기
-            const settingsContents = document.querySelectorAll('.settings-content');
-            settingsContents.forEach(content => {
-                content.classList.add('hidden');
-            });
-            
-            // 모든 탭 버튼 비활성화
-            const tabButtons = document.querySelectorAll('.settings-tab-btn');
-            tabButtons.forEach(btn => {
-                btn.classList.remove('border-blue-500', 'text-blue-600');
-                btn.classList.add('border-transparent', 'text-gray-500');
-            });
-            
-            // 선택된 탭 활성화
-            const targetContent = document.getElementById(tabName + 'Settings');
-            const targetButton = document.getElementById(tabName + 'Tab');
-            
-            if (targetContent) {
-                targetContent.classList.remove('hidden');
-            }
-            
-            if (targetButton) {
-                targetButton.classList.remove('border-transparent', 'text-gray-500');
-                targetButton.classList.add('border-blue-500', 'text-blue-600');
-            }
-            
-            // 탭별 특별 처리
-            if (tabName === 'organization') {
-                setTimeout(() => {
-                    if (typeof refreshOrganization === 'function') {
-                        refreshOrganization();
-                    }
-                }, 100);
-            } else if (tabName === 'users') {
-                setTimeout(() => {
-                    if (typeof refreshPendingUsers === 'function') {
-                        refreshPendingUsers();
-                    }
-                    if (typeof refreshAllUsers === 'function') {
-                        refreshAllUsers();
-                    }
-                }, 100);
+        // API 호출 헬퍼
+        window.apiCall = async function(url, options = {}) {
+            try {
+                const response = await fetch(url, {
+                    headers: { 'Content-Type': 'application/json' },
+                    ...options
+                });
+                return await response.json();
+            } catch (error) {
+                console.error('API 호출 오류:', error);
+                throw error;
             }
         };
 
-        // 조직 관리 함수들
+        console.log('✅ Auth & Data Management 로드됨');
+        </script>
+
+        <!-- ⚙️ Settings & System - 설정 및 시스템 관리 -->
+        <script>
+        // 설정 탭 전환
+        window.showSettingsTabReal = function(tabName) {
+            try {
+                console.log('⚙️ Settings tab switching to:', tabName);
+                
+                // 모든 설정 탭 숨기기 및 버튼 초기화
+                document.querySelectorAll('.settings-content').forEach(content => {
+                    if (content) content.classList.add('hidden');
+                });
+                document.querySelectorAll('.settings-tab-btn').forEach(btn => {
+                    if (btn) {
+                        btn.classList.remove('border-blue-500', 'text-blue-600');
+                        btn.classList.add('border-transparent', 'text-gray-500');
+                    }
+                });
+                
+                // 선택된 탭 활성화
+                const targetContent = document.getElementById(tabName + 'Settings');
+                const targetButton = document.getElementById(tabName + 'Tab');
+                
+                console.log('🎯 Target content:', !!targetContent, 'Target button:', !!targetButton);
+                
+                if (targetContent) {
+                    targetContent.classList.remove('hidden');
+                    console.log('✅ 탭 컨텐츠 표시됨:', tabName + 'Settings');
+                } else {
+                    console.warn('⚠️ 탭 컨텐츠를 찾을 수 없음:', tabName + 'Settings');
+                }
+                
+                if (targetButton) {
+                    targetButton.classList.remove('border-transparent', 'text-gray-500');
+                    targetButton.classList.add('border-blue-500', 'text-blue-600');
+                    console.log('✅ 탭 버튼 활성화됨:', tabName + 'Tab');
+                } else {
+                    console.warn('⚠️ 탭 버튼을 찾을 수 없음:', tabName + 'Tab');
+                }
+                
+                // 탭별 데이터 로드
+                setTimeout(() => {
+                    try {
+                        if (tabName === 'organization' && typeof refreshOrganization === 'function') {
+                            refreshOrganization();
+                        }
+                        if (tabName === 'users') {
+                            if (typeof refreshPendingUsers === 'function') refreshPendingUsers();
+                            if (typeof refreshAllUsers === 'function') refreshAllUsers();
+                        }
+                        if (tabName === 'evaluation') {
+                            // 평가 설정 탭의 경우 기본적으로 대시보드 탭 활성화
+                            if (typeof switchEvaluationTab === 'function') {
+                                switchEvaluationTab('dashboard');
+                            }
+                        }
+                    } catch (error) {
+                        console.error('❌ 탭 데이터 로드 오류:', error);
+                    }
+                }, 100);
+                
+                console.log('✅ Settings tab 전환 완료:', tabName);
+            } catch (error) {
+                console.error('❌ Settings tab 전환 오류:', error);
+            }
+        };
+
+        // 실제 함수가 로드되면 임시 함수를 교체
+        setTimeout(() => {
+            console.log('🔄 실제 함수로 교체 중...');
+            window.showTab = window.showTabReal;
+            window.showSettingsTab = window.showSettingsTabReal;
+            console.log('✅ 함수 교체 완료');
+        }, 100);
+
+        // 시스템 관리 함수들
+        window.exportUserList = () => showToast('사용자 목록 내보내기 기능 준비 중입니다.', 'info');
+        window.cleanupInactiveUsers = () => showToast('비활성 사용자 정리 기능 준비 중입니다.', 'info');
+        window.showUserStats = () => showToast('사용자 통계 기능 준비 중입니다.', 'info');
+
+        window.testEmailService = async function() {
+            try {
+                const data = await apiCall('/api/test-email', { method: 'POST' });
+                showToast(data.success ? '테스트 이메일이 발송되었습니다.' : data.message || '이메일 테스트 실패', data.success ? 'success' : 'error');
+            } catch (error) {
+                console.error('이메일 테스트 오류:', error);
+                showToast('이메일 테스트 중 오류가 발생했습니다.', 'error');
+            }
+        };
+
+        console.log('✅ Settings & System 로드됨');
+        </script>
+
+        <!-- 🏢 Organization Management - 조직 관리 -->
+        <script>
+        // 조직 목록 새로고침
         window.refreshOrganization = async function() {
             try {
-                const response = await fetch('/api/organizations');
-                const data = await response.json();
+                const data = await apiCall('/api/organizations');
+                if (!data.success) throw new Error(data.message);
                 
-                if (data.success) {
-                    const container = document.getElementById('organizationTree');
-                    if (!container) return;
-                    
-                    if (data.organizations.length === 0) {
-                        container.innerHTML = 
-                            '<div class="text-center py-8 text-gray-500">' +
-                                '<i class="fas fa-building text-3xl mb-4"></i>' +
-                                '<p>조직이 아직 설정되지 않았습니다.</p>' +
-                                '<button onclick="initializeRealOrganization()" class="mt-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">' +
-                                    '<i class="fas fa-sync mr-2"></i>실제 구조로 초기화' +
-                                '</button>' +
-                            '</div>';
-                    } else {
-                        let html = '';
-                        
-                        // 팀별로 그룹화
-                        const teams = data.organizations.filter(org => org.type === 'team');
-                        const parts = data.organizations.filter(org => org.type === 'part');
-                        
-                        teams.forEach(team => {
-                            html += '<div class="border border-gray-200 rounded-lg p-4 mb-4">';
-                            html += '<div class="flex items-center justify-between mb-3">';
-                            html += '<h4 class="text-lg font-semibold text-blue-600">';
-                            html += '<i class="fas fa-users mr-2"></i>' + team.name;
-                            html += '</h4>';
-                            html += '<div class="flex space-x-2">';
-                            html += '<button onclick="editOrganization(\\'' + team.id + '\\')" class="text-blue-600 hover:text-blue-800">';
-                            html += '<i class="fas fa-edit"></i>';
-                            html += '</button>';
-                            html += '<button onclick="deleteOrganization(\\'' + team.id + '\\')" class="text-red-600 hover:text-red-800">';
-                            html += '<i class="fas fa-trash"></i>';
-                            html += '</button>';
-                            html += '</div>';
-                            html += '</div>';
-                            
-                            // 해당 팀의 파트들
-                            const teamParts = parts.filter(part => part.parentId === team.id);
-                            if (teamParts.length > 0) {
-                                html += '<div class="ml-6 space-y-2">';
-                                teamParts.forEach(part => {
-                                    html += '<div class="flex items-center justify-between p-2 bg-gray-50 rounded border-l-4 border-green-400">';
-                                    html += '<span class="font-medium text-gray-800">';
-                                    html += '<i class="fas fa-sitemap mr-2 text-green-600"></i>' + part.name;
-                                    html += '</span>';
-                                    html += '<div class="flex space-x-2">';
-                                    html += '<button onclick="editOrganization(\\'' + part.id + '\\')" class="text-blue-600 hover:text-blue-800">';
-                                    html += '<i class="fas fa-edit"></i>';
-                                    html += '</button>';
-                                    html += '<button onclick="deleteOrganization(\\'' + part.id + '\\')" class="text-red-600 hover:text-red-800">';
-                                    html += '<i class="fas fa-trash"></i>';
-                                    html += '</button>';
-                                    html += '</div>';
-                                    html += '</div>';
-                                });
-                                html += '</div>';
-                            }
-                            html += '</div>';
-                        });
-                        
-                        container.innerHTML = html;
-                    }
-                    
-                    // 상위 조직 선택 옵션 업데이트
-                    const parentSelect = document.getElementById('parentOrg');
-                    if (parentSelect) {
-                        const teams = data.organizations.filter(org => org.type === 'team');
-                        parentSelect.innerHTML = '<option value="">클라우드사업본부 (최상위)</option>';
-                        teams.forEach(team => {
-                            parentSelect.innerHTML += '<option value="' + team.id + '">' + team.name + '</option>';
-                        });
-                    }
+                const container = document.getElementById('organizationTree');
+                if (!container) return;
+                
+                if (data.organizations.length === 0) {
+                    container.innerHTML = 
+                        '<div class="text-center py-8 text-gray-500">' +
+                            '<i class="fas fa-building text-3xl mb-4"></i>' +
+                            '<p>조직이 아직 설정되지 않았습니다.</p>' +
+                            '<button onclick="initializeRealOrganization()" class="mt-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">' +
+                                '<i class="fas fa-sync mr-2"></i>실제 구조로 초기화' +
+                            '</button>' +
+                        '</div>';
+                } else {
+                    renderOrganizationTree(data.organizations);
                 }
+                
+                updateParentOrgSelect(data.organizations);
             } catch (error) {
                 console.error('조직 목록 로드 오류:', error);
                 showToast('조직 목록을 불러올 수 없습니다.', 'error');
             }
         };
 
+        // 조직 트리 렌더링
+        function renderOrganizationTree(organizations) {
+            const teams = organizations.filter(org => org.type === 'team');
+            const parts = organizations.filter(org => org.type === 'part');
+            
+            let html = '';
+            teams.forEach(team => {
+                html += '<div class="border border-gray-200 rounded-lg p-4 mb-4">';
+                html += '<div class="flex items-center justify-between mb-3">';
+                html += '<div class="flex items-center space-x-3">';
+                html += '<h4 class="text-lg font-semibold text-blue-600"><i class="fas fa-users mr-2"></i>' + team.name + '</h4>';
+                html += '<span class="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">' + team.memberCount + '명</span>';
+                html += '</div>';
+                html += '<div class="flex space-x-2">';
+                html += '<button onclick="editOrganization(\\'' + team.id + '\\')" class="text-blue-600 hover:text-blue-800"><i class="fas fa-edit"></i></button>';
+                html += '<button onclick="deleteOrganization(\\'' + team.id + '\\')" class="text-red-600 hover:text-red-800"><i class="fas fa-trash"></i></button>';
+                html += '</div></div>';
+                
+                // 팀 멤버 표시
+                if (team.members && team.members.length > 0) {
+                    html += '<div class="mb-3 ml-6">';
+                    html += '<h5 class="text-sm font-medium text-gray-600 mb-2">팀 멤버</h5>';
+                    html += '<div class="flex flex-wrap gap-2">';
+                    team.members.forEach(member => {
+                        const roleClass = member.role === 'admin' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-700';
+                        const roleIcon = member.role === 'admin' ? 'fas fa-crown' : 'fas fa-user';
+                        html += '<div class="flex items-center space-x-1 px-2 py-1 ' + roleClass + ' rounded-full text-xs">';
+                        html += '<i class="' + roleIcon + '"></i>';
+                        html += '<span>' + member.name + '</span>';
+                        html += '</div>';
+                    });
+                    html += '</div></div>';
+                }
+                
+                const teamParts = parts.filter(part => part.parentId === team.id);
+                if (teamParts.length > 0) {
+                    html += '<div class="ml-6 space-y-2">';
+                    teamParts.forEach(part => {
+                        html += '<div class="p-3 bg-gray-50 rounded border-l-4 border-green-400">';
+                        html += '<div class="flex items-center justify-between mb-2">';
+                        html += '<div class="flex items-center space-x-2">';
+                        html += '<span class="font-medium text-gray-800"><i class="fas fa-sitemap mr-2 text-green-600"></i>' + part.name + '</span>';
+                        html += '<span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">' + part.memberCount + '명</span>';
+                        html += '</div>';
+                        html += '<div class="flex space-x-2">';
+                        html += '<button onclick="editOrganization(\\'' + part.id + '\\')" class="text-blue-600 hover:text-blue-800"><i class="fas fa-edit"></i></button>';
+                        html += '<button onclick="deleteOrganization(\\'' + part.id + '\\')" class="text-red-600 hover:text-red-800"><i class="fas fa-trash"></i></button>';
+                        html += '</div></div>';
+                        
+                        // 파트 멤버 표시
+                        if (part.members && part.members.length > 0) {
+                            html += '<div class="ml-4">';
+                            html += '<div class="flex flex-wrap gap-2">';
+                            part.members.forEach(member => {
+                                const roleClass = member.role === 'admin' ? 'bg-red-100 text-red-800' : 'bg-white text-gray-700 border border-gray-200';
+                                const roleIcon = member.role === 'admin' ? 'fas fa-crown' : 'fas fa-user';
+                                html += '<div class="flex items-center space-x-1 px-2 py-1 ' + roleClass + ' rounded text-xs">';
+                                html += '<i class="' + roleIcon + '"></i>';
+                                html += '<span>' + member.name + '</span>';
+                                html += '</div>';
+                            });
+                            html += '</div></div>';
+                        } else {
+                            html += '<div class="ml-4 text-xs text-gray-500 italic">멤버 없음</div>';
+                        }
+                        
+                        html += '</div>';
+                    });
+                    html += '</div>';
+                } else {
+                    html += '<div class="ml-6 text-sm text-gray-500 italic">하위 조직 없음</div>';
+                }
+                html += '</div>';
+            });
+            
+            document.getElementById('organizationTree').innerHTML = html;
+        }
+
+        // 상위 조직 선택 옵션 업데이트
+        function updateParentOrgSelect(organizations) {
+            const parentSelect = document.getElementById('parentOrg');
+            if (!parentSelect) return;
+            
+            const teams = organizations.filter(org => org.type === 'team');
+            parentSelect.innerHTML = '<option value="">클라우드사업본부 (최상위)</option>';
+            teams.forEach(team => {
+                parentSelect.innerHTML += '<option value="' + team.id + '">' + team.name + '</option>';
+            });
+        }
+
         // 실제 조직 구조 초기화
         window.initializeRealOrganization = async function() {
-            if (!isAdmin()) {
-                showToast('관리자 권한이 필요합니다.', 'error');
-                return;
-            }
+            if (!isAdmin()) return showToast('관리자 권한이 필요합니다.', 'error');
             
             if (!confirm('⚠️ 기존 조직 데이터를 모두 삭제하고 실제 클라우드사업본부 구조로 초기화하시겠습니까?\\n\\n초기화될 구조:\\n• Sales팀 (영업, 영업관리)\\n• CX팀 (고객서비스, 기술지원, Technical Writing, Technical Marketing, 사업운영)')) {
                 return;
             }
             
             try {
-                const response = await fetch('/api/organizations/initialize', {
-                    method: 'POST'
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    showToast('클라우드사업본부 조직 구조가 초기화되었습니다.', 'success');
-                    refreshOrganization();
-                } else {
-                    showToast(data.message || '초기화에 실패했습니다.', 'error');
-                }
+                const data = await apiCall('/api/organizations/initialize', { method: 'POST' });
+                showToast(data.success ? '클라우드사업본부 조직 구조가 초기화되었습니다.' : data.message || '초기화 실패', data.success ? 'success' : 'error');
+                if (data.success) refreshOrganization();
             } catch (error) {
                 console.error('조직 구조 초기화 오류:', error);
                 showToast('초기화 중 오류가 발생했습니다.', 'error');
             }
         };
 
-        // 사용자 관리 함수들
+        // 조직 편집
+        window.editOrganization = async function(orgId) {
+            if (!isAdmin()) return showToast('관리자 권한이 필요합니다.', 'error');
+            
+            try {
+                const data = await apiCall('/api/organizations');
+                if (!data.success) throw new Error('조직 데이터를 가져올 수 없습니다.');
+                
+                const org = data.organizations.find(o => o.id === orgId);
+                if (!org) return showToast('조직 정보를 찾을 수 없습니다.', 'error');
+                
+                const typeText = org.type === 'team' ? '팀' : '파트';
+                const newName = prompt(typeText + ' 이름을 수정하세요:', org.name);
+                
+                if (newName && newName.trim() !== org.name) {
+                    const updateData = await apiCall('/api/organizations/' + orgId, {
+                        method: 'PUT',
+                        body: JSON.stringify({ name: newName.trim() })
+                    });
+                    
+                    showToast(updateData.success ? '조직 정보가 수정되었습니다.' : updateData.message || '수정 실패', updateData.success ? 'success' : 'error');
+                    if (updateData.success) refreshOrganization();
+                }
+            } catch (error) {
+                console.error('조직 수정 오류:', error);
+                showToast('조직 수정 중 오류가 발생했습니다.', 'error');
+            }
+        };
+
+        // 조직 삭제
+        window.deleteOrganization = async function(orgId) {
+            if (!isAdmin()) return showToast('관리자 권한이 필요합니다.', 'error');
+            
+            try {
+                const data = await apiCall('/api/organizations');
+                if (!data.success) throw new Error('조직 데이터를 가져올 수 없습니다.');
+                
+                const org = data.organizations.find(o => o.id === orgId);
+                if (!org) return showToast('조직 정보를 찾을 수 없습니다.', 'error');
+                
+                const typeText = org.type === 'team' ? '팀' : '파트';
+                if (!confirm('"' + org.name + '" ' + typeText + '를 삭제하시겠습니까?')) return;
+                
+                const deleteData = await apiCall('/api/organizations/' + orgId, { method: 'DELETE' });
+                showToast(deleteData.success ? '조직이 삭제되었습니다.' : deleteData.message || '삭제 실패', deleteData.success ? 'info' : 'error');
+                if (deleteData.success) refreshOrganization();
+            } catch (error) {
+                console.error('조직 삭제 오류:', error);
+                showToast('조직 삭제 중 오류가 발생했습니다.', 'error');
+            }
+        };
+
+        console.log('✅ Organization Management 로드됨');
+        </script>
+
+        <!-- 👥 User Management - 사용자 관리 -->
+        <script>
+        // 승인 대기 회원 새로고침
         window.refreshPendingUsers = async function() {
             try {
-                const response = await fetch('/api/users/pending');
-                const data = await response.json();
+                const data = await apiCall('/api/users/pending');
+                if (!data.success) throw new Error(data.message);
                 
                 const container = document.getElementById('pendingUsersContainer');
                 if (!container) return;
                 
-                if (data.success) {
-                    if (data.users.length === 0) {
-                        container.innerHTML = 
-                            '<div class="text-center py-8 text-gray-500">' +
-                                '<i class="fas fa-user-check text-3xl mb-4"></i>' +
-                                '<p>승인 대기 중인 회원이 없습니다.</p>' +
-                            '</div>';
-                    } else {
-                        const usersHTML = data.users.map((user, index) => 
-                            '<div class="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-lg">' +
-                                '<div class="flex items-center space-x-3">' +
-                                    '<div class="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">' +
-                                        '<i class="fas fa-user text-yellow-600"></i>' +
-                                    '</div>' +
-                                    '<div>' +
-                                        '<h4 class="font-medium text-gray-900">' + user.name + '</h4>' +
-                                        '<p class="text-sm text-gray-600">' + user.email + '</p>' +
-                                        '<p class="text-xs text-gray-500">' +
-                                            (user.role === 'admin' ? '관리자' : user.role === 'admin_user' ? '관리자겸사용자' : '일반 사용자') + ' • ' + 
-                                            new Date(user.createdAt).toLocaleString('ko-KR') +
-                                        '</p>' +
-                                    '</div>' +
-                                '</div>' +
-                                '<div class="flex space-x-2">' +
-                                    '<button onclick="approveUser(\\'' + user.email + '\\')" ' +
-                                            'class="px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors">' +
-                                        '<i class="fas fa-check mr-1"></i>승인' +
-                                    '</button>' +
-                                    '<button onclick="rejectUser(\\'' + user.email + '\\')" ' +
-                                            'class="px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors">' +
-                                        '<i class="fas fa-times mr-1"></i>거부' +
-                                    '</button>' +
-                                '</div>' +
-                            '</div>'
-                        ).join('');
-                        
-                        container.innerHTML = 
-                            '<div class="mb-4">' +
-                                '<p class="text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg p-3">' +
-                                    '<i class="fas fa-exclamation-triangle mr-2"></i>' +
-                                    '총 <strong>' + data.users.length + '명</strong>의 회원이 승인을 기다리고 있습니다.' +
-                                '</p>' +
-                            '</div>' +
-                            usersHTML;
-                    }
+                if (data.users.length === 0) {
+                    container.innerHTML = 
+                        '<div class="text-center py-8 text-gray-500">' +
+                            '<i class="fas fa-user-check text-3xl mb-4"></i>' +
+                            '<p>승인 대기 중인 회원이 없습니다.</p>' +
+                        '</div>';
                 } else {
-                    throw new Error(data.message || '데이터 로드 실패');
+                    renderPendingUsers(container, data.users);
                 }
             } catch (error) {
                 console.error('승인 대기 회원 로드 오류:', error);
-                const container = document.getElementById('pendingUsersContainer');
-                if (container) {
-                    container.innerHTML = 
-                        '<div class="text-center py-8 text-red-500">' +
-                            '<i class="fas fa-exclamation-circle text-2xl mb-2"></i>' +
-                            '<p>데이터를 불러올 수 없습니다.</p>' +
-                            '<button onclick="refreshPendingUsers()" class="mt-2 text-sm text-blue-600 hover:text-blue-800">다시 시도</button>' +
-                        '</div>';
-                }
+                renderError(document.getElementById('pendingUsersContainer'), '승인 대기 회원', 'refreshPendingUsers');
             }
         };
 
+        // 전체 사용자 새로고침
         window.refreshAllUsers = async function() {
             try {
-                const response = await fetch('/api/users');
-                const data = await response.json();
+                const data = await apiCall('/api/users');
+                if (!data.success) throw new Error(data.message);
                 
                 const container = document.getElementById('allUsersContainer');
                 if (!container) return;
                 
-                if (data.success) {
-                    if (data.users.length === 0) {
-                        container.innerHTML = 
-                            '<div class="text-center py-8 text-gray-500">' +
-                                '<i class="fas fa-users text-3xl mb-4"></i>' +
-                                '<p>등록된 사용자가 없습니다.</p>' +
-                            '</div>';
-                    } else {
-                        const usersHTML = data.users.map(user => {
-                            const statusColors = {
-                                'approved': 'bg-green-100 text-green-800',
-                                'pending': 'bg-yellow-100 text-yellow-800',
-                                'rejected': 'bg-red-100 text-red-800',
-                                'inactive': 'bg-gray-100 text-gray-800'
-                            };
-                            
-                            const statusNames = {
-                                'approved': '승인됨',
-                                'pending': '대기중',
-                                'rejected': '거부됨',
-                                'inactive': '비활성'
-                            };
-                            
-                            return '<div class="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg">' +
-                                '<div class="flex items-center space-x-3">' +
-                                    '<div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">' +
-                                        '<i class="fas fa-user text-blue-600"></i>' +
-                                    '</div>' +
-                                    '<div>' +
-                                        '<h4 class="font-medium text-gray-900">' + user.name + '</h4>' +
-                                        '<p class="text-sm text-gray-600">' + user.email + '</p>' +
-                                        '<div class="flex items-center space-x-2 mt-1">' +
-                                            '<span class="text-xs px-2 py-1 rounded-full ' + (statusColors[user.status] || 'bg-gray-100 text-gray-800') + '">' +
-                                                (statusNames[user.status] || user.status) +
-                                            '</span>' +
-                                            '<span class="text-xs text-gray-500">' +
-                                                (user.role === 'admin' ? '관리자' : user.role === 'admin_user' ? '관리자겸사용자' : '일반 사용자') +
-                                            '</span>' +
-                                        '</div>' +
-                                    '</div>' +
-                                '</div>' +
-                                '<div class="flex space-x-2">' +
-                                    '<button onclick="editUser(\\'' + user.email + '\\')" ' +
-                                            'class="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition-colors">' +
-                                        '<i class="fas fa-edit mr-1"></i>수정' +
-                                    '</button>' +
-                                '</div>' +
-                            '</div>';
-                        }).join('');
-                        
-                        container.innerHTML = usersHTML;
-                    }
+                if (data.users.length === 0) {
+                    container.innerHTML = 
+                        '<div class="text-center py-8 text-gray-500">' +
+                            '<i class="fas fa-users text-3xl mb-4"></i>' +
+                            '<p>등록된 사용자가 없습니다.</p>' +
+                        '</div>';
                 } else {
-                    throw new Error(data.message || '데이터 로드 실패');
+                    renderAllUsers(container, data.users);
                 }
             } catch (error) {
                 console.error('전체 사용자 로드 오류:', error);
-                const container = document.getElementById('allUsersContainer');
-                if (container) {
-                    container.innerHTML = 
-                        '<div class="text-center py-8 text-red-500">' +
-                            '<i class="fas fa-exclamation-circle text-2xl mb-2"></i>' +
-                            '<p>데이터를 불러올 수 없습니다.</p>' +
-                            '<button onclick="refreshAllUsers()" class="mt-2 text-sm text-blue-600 hover:text-blue-800">다시 시도</button>' +
-                        '</div>';
-                }
+                renderError(document.getElementById('allUsersContainer'), '사용자 목록', 'refreshAllUsers');
             }
         };
 
-        // 사용자 승인/거부 함수들
+        // 승인 대기 회원 렌더링
+        function renderPendingUsers(container, users) {
+            const usersHTML = users.map(user => 
+                '<div class="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-lg">' +
+                    '<div class="flex items-center space-x-3">' +
+                        '<div class="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">' +
+                            '<i class="fas fa-user text-yellow-600"></i>' +
+                        '</div>' +
+                        '<div>' +
+                            '<h4 class="font-medium text-gray-900">' + user.name + '</h4>' +
+                            '<p class="text-sm text-gray-600">' + user.email + '</p>' +
+                            '<p class="text-xs text-gray-500">' + getRoleName(user.role) + ' • ' + new Date(user.createdAt).toLocaleString('ko-KR') + '</p>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="flex space-x-2">' +
+                        '<button onclick="approveUser(\\'' + user.email + '\\')" class="px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors">' +
+                            '<i class="fas fa-check mr-1"></i>승인' +
+                        '</button>' +
+                        '<button onclick="rejectUser(\\'' + user.email + '\\')" class="px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors">' +
+                            '<i class="fas fa-times mr-1"></i>거부' +
+                        '</button>' +
+                    '</div>' +
+                '</div>'
+            ).join('');
+            
+            container.innerHTML = 
+                '<div class="mb-4">' +
+                    '<p class="text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg p-3">' +
+                        '<i class="fas fa-exclamation-triangle mr-2"></i>' +
+                        '총 <strong>' + users.length + '명</strong>의 회원이 승인을 기다리고 있습니다.' +
+                    '</p>' +
+                '</div>' + usersHTML;
+        }
+
+        // 전체 사용자 렌더링
+        function renderAllUsers(container, users) {
+            const usersHTML = users.map(user => {
+                const statusColor = getStatusColor(user.status);
+                const statusName = getStatusName(user.status);
+                
+                return '<div class="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg">' +
+                    '<div class="flex items-center space-x-3">' +
+                        '<div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">' +
+                            '<i class="fas fa-user text-blue-600"></i>' +
+                        '</div>' +
+                        '<div>' +
+                            '<h4 class="font-medium text-gray-900">' + user.name + '</h4>' +
+                            '<p class="text-sm text-gray-600">' + user.email + '</p>' +
+                            '<div class="flex items-center space-x-2 mt-1">' +
+                                '<span class="text-xs px-2 py-1 rounded-full ' + statusColor + '">' + statusName + '</span>' +
+                                '<span class="text-xs text-gray-500">' + getRoleName(user.role) + '</span>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="flex space-x-2">' +
+                        '<button onclick="editUser(\\'' + user.email + '\\')" class="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition-colors">' +
+                            '<i class="fas fa-edit mr-1"></i>수정' +
+                        '</button>' +
+                        '<button onclick="deleteUser(\\'' + user.email + '\\')" class="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-sm hover:bg-red-200 transition-colors">' +
+                            '<i class="fas fa-trash mr-1"></i>삭제' +
+                        '</button>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+            
+            container.innerHTML = usersHTML;
+        }
+
+        // 헬퍼 함수들
+        function getRoleName(role) {
+            const roleNames = { 'admin': '관리자', 'admin_user': '관리자겸사용자', 'user': '일반 사용자' };
+            return roleNames[role] || '일반 사용자';
+        }
+
+        function getStatusColor(status) {
+            const colors = {
+                'approved': 'bg-green-100 text-green-800',
+                'pending': 'bg-yellow-100 text-yellow-800',
+                'rejected': 'bg-red-100 text-red-800',
+                'inactive': 'bg-gray-100 text-gray-800'
+            };
+            return colors[status] || 'bg-gray-100 text-gray-800';
+        }
+
+        function getStatusName(status) {
+            const names = { 'approved': '승인됨', 'pending': '대기중', 'rejected': '거부됨', 'inactive': '비활성' };
+            return names[status] || status;
+        }
+
+        function renderError(container, type, retryFunction) {
+            if (!container) return;
+            container.innerHTML = 
+                '<div class="text-center py-8 text-red-500">' +
+                    '<i class="fas fa-exclamation-circle text-2xl mb-2"></i>' +
+                    '<p>' + type + '을 불러올 수 없습니다.</p>' +
+                    '<button onclick="' + retryFunction + '()" class="mt-2 text-sm text-blue-600 hover:text-blue-800">다시 시도</button>' +
+                '</div>';
+        }
+
+        // 사용자 승인
         window.approveUser = async function(email) {
-            if (!isAdmin()) {
-                showToast('관리자 권한이 필요합니다.', 'error');
-                return;
-            }
+            if (!isAdmin()) return showToast('관리자 권한이 필요합니다.', 'error');
             
             try {
-                const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-                const response = await fetch('/api/users/approve', {
+                const currentUser = getCurrentUser();
+                const data = await apiCall('/api/users/approve', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        email: email, 
-                        approverEmail: currentUser.email 
-                    })
+                    body: JSON.stringify({ email, approverEmail: currentUser.email })
                 });
                 
-                const data = await response.json();
-                
+                showToast(data.message, data.success ? 'success' : 'error');
                 if (data.success) {
-                    showToast(data.message, 'success');
                     refreshPendingUsers();
                     refreshAllUsers();
-                } else {
-                    showToast(data.message, 'error');
+                    updateDashboardStats(); // 대시보드 통계 업데이트
                 }
             } catch (error) {
                 console.error('사용자 승인 오류:', error);
@@ -3266,35 +4390,25 @@ app.get('/dashboard', (c) => {
             }
         };
 
+        // 사용자 거부
         window.rejectUser = async function(email) {
-            if (!isAdmin()) {
-                showToast('관리자 권한이 필요합니다.', 'error');
-                return;
-            }
+            if (!isAdmin()) return showToast('관리자 권한이 필요합니다.', 'error');
             
             const reason = prompt('거부 사유를 입력하세요 (선택사항):');
-            if (reason === null) return; // 취소 버튼
+            if (reason === null) return;
             
             try {
-                const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-                const response = await fetch('/api/users/reject', {
+                const currentUser = getCurrentUser();
+                const data = await apiCall('/api/users/reject', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        email: email, 
-                        reason: reason,
-                        approverEmail: currentUser.email 
-                    })
+                    body: JSON.stringify({ email, reason, approverEmail: currentUser.email })
                 });
                 
-                const data = await response.json();
-                
+                showToast(data.message, data.success ? 'info' : 'error');
                 if (data.success) {
-                    showToast(data.message, 'info');
                     refreshPendingUsers();
                     refreshAllUsers();
-                } else {
-                    showToast(data.message, 'error');
+                    updateDashboardStats(); // 대시보드 통계 업데이트
                 }
             } catch (error) {
                 console.error('사용자 거부 오류:', error);
@@ -3304,31 +4418,21 @@ app.get('/dashboard', (c) => {
 
         // 일괄 승인
         window.bulkApproveUsers = async function() {
-            if (!isAdmin()) {
-                showToast('관리자 권한이 필요합니다.', 'error');
-                return;
-            }
-            
-            if (!confirm('정말로 대기 중인 모든 회원을 승인하시겠습니까?')) {
-                return;
-            }
+            if (!isAdmin()) return showToast('관리자 권한이 필요합니다.', 'error');
+            if (!confirm('정말로 대기 중인 모든 회원을 승인하시겠습니까?')) return;
             
             try {
-                const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-                const response = await fetch('/api/users/bulk-approve', {
+                const currentUser = getCurrentUser();
+                const data = await apiCall('/api/users/bulk-approve', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ approverEmail: currentUser.email })
                 });
                 
-                const data = await response.json();
-                
+                showToast(data.message, data.success ? 'success' : 'error');
                 if (data.success) {
-                    showToast(data.message, 'success');
                     refreshPendingUsers();
                     refreshAllUsers();
-                } else {
-                    showToast(data.message, 'error');
+                    updateDashboardStats(); // 대시보드 통계 업데이트
                 }
             } catch (error) {
                 console.error('일괄 승인 오류:', error);
@@ -3336,179 +4440,2039 @@ app.get('/dashboard', (c) => {
             }
         };
 
-        // 조직 편집/삭제 함수들
-        window.editOrganization = async function(orgId) {
-            if (!isAdmin()) {
-                showToast('관리자 권한이 필요합니다.', 'error');
-                return;
-            }
+        // 사용자 수정
+        window.editUser = async function(email) {
+            if (!isAdmin()) return showToast('관리자 권한이 필요합니다.', 'error');
             
             try {
-                const response = await fetch('/api/organizations');
-                const data = await response.json();
+                // 사용자 정보 가져오기
+                const usersData = await apiCall('/api/users');
+                if (!usersData.success) throw new Error('사용자 데이터를 가져올 수 없습니다.');
                 
-                if (!data.success) {
-                    showToast('조직 데이터를 가져올 수 없습니다.', 'error');
-                    return;
-                }
+                const user = usersData.users.find(u => u.email === email);
+                if (!user) return showToast('사용자를 찾을 수 없습니다.', 'error');
                 
-                const org = data.organizations.find(o => o.id === orgId);
-                if (!org) {
-                    showToast('조직 정보를 찾을 수 없습니다.', 'error');
-                    return;
-                }
+                // 조직 데이터 가져오기
+                const orgData = await apiCall('/api/organizations');
+                if (!orgData.success) throw new Error('조직 데이터를 가져올 수 없습니다.');
                 
-                const typeText = org.type === 'team' ? '팀' : '파트';
-                const newName = prompt(typeText + ' 이름을 수정하세요:', org.name);
+                const organizations = orgData.organizations;
+                const teams = organizations.filter(org => org.type === 'team');
                 
-                if (newName && newName.trim() !== org.name) {
-                    const updateResponse = await fetch('/api/organizations/' + orgId, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ name: newName.trim() })
-                    });
-                    
-                    const updateData = await updateResponse.json();
-                    
-                    if (updateData.success) {
-                        refreshOrganization();
-                        showToast('조직 정보가 수정되었습니다.', 'success');
-                    } else {
-                        showToast(updateData.message || '수정에 실패했습니다.', 'error');
+                // 수정 모달 만들기
+                const modal = document.createElement('div');
+                modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+                
+                const modalContent = document.createElement('div');
+                modalContent.className = 'bg-white rounded-lg p-6 w-full max-w-md mx-4';
+                
+                modalContent.innerHTML = '<h3 class="text-lg font-semibold text-gray-900 mb-4">' + 
+                    '<i class="fas fa-user-edit text-blue-600 mr-2"></i>사용자 정보 수정' + 
+                    '</h3>' +
+                    '<form id="editUserForm" class="space-y-4">' +
+                        '<div>' +
+                            '<label class="block text-sm font-medium text-gray-700 mb-1">이름</label>' +
+                            '<input type="text" id="editUserName" value="' + user.name + '" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">' +
+                        '</div>' +
+                        '<div>' +
+                            '<label class="block text-sm font-medium text-gray-700 mb-1">역할</label>' +
+                            '<select id="editUserRole" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">' +
+                                '<option value="user"' + (user.role === 'user' ? ' selected' : '') + '>일반 사용자</option>' +
+                                '<option value="admin"' + (user.role === 'admin' ? ' selected' : '') + '>관리자</option>' +
+                                '<option value="admin_user"' + (user.role === 'admin_user' ? ' selected' : '') + '>관리자겸사용자</option>' +
+                            '</select>' +
+                        '</div>' +
+                        '<div>' +
+                            '<label class="block text-sm font-medium text-gray-700 mb-1">소속 팀</label>' +
+                            '<select id="editUserTeam" onchange="updateEditPartOptions()" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">' +
+                                '<option value="">팀을 선택하세요</option>' +
+                                teams.map(team => '<option value="' + team.id + '"' + (user.team === team.name ? ' selected' : '') + '>' + team.name + '</option>').join('') +
+                            '</select>' +
+                        '</div>' +
+                        '<div>' +
+                            '<label class="block text-sm font-medium text-gray-700 mb-1">소속 파트</label>' +
+                            '<select id="editUserPart" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">' +
+                                '<option value="">파트를 선택하세요</option>' +
+                            '</select>' +
+                        '</div>' +
+                        '<div class="flex justify-end space-x-2 mt-6">' +
+                            '<button type="button" onclick="closeEditModal()" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">취소</button>' +
+                            '<button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">수정</button>' +
+                        '</div>' +
+                    '</form>';
+                
+                modal.appendChild(modalContent);
+                
+                // 모달 닫기 함수
+                window.closeEditModal = function() {
+                    if (modal.parentNode) {
+                        document.body.removeChild(modal);
                     }
-                }
-            } catch (error) {
-                console.error('조직 수정 오류:', error);
-                showToast('조직 수정 중 오류가 발생했습니다.', 'error');
-            }
-        };
-
-        window.deleteOrganization = async function(orgId) {
-            if (!isAdmin()) {
-                showToast('관리자 권한이 필요합니다.', 'error');
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/organizations');
-                const data = await response.json();
+                    delete window.closeEditModal;
+                    delete window.updateEditPartOptions;
+                };
                 
-                if (!data.success) {
-                    showToast('조직 데이터를 가져올 수 없습니다.', 'error');
-                    return;
-                }
-                
-                const org = data.organizations.find(o => o.id === orgId);
-                if (!org) {
-                    showToast('조직 정보를 찾을 수 없습니다.', 'error');
-                    return;
-                }
-                
-                const typeText = org.type === 'team' ? '팀' : '파트';
-                if (confirm('"' + org.name + '" ' + typeText + '를 삭제하시겠습니까?')) {
-                    const deleteResponse = await fetch('/api/organizations/' + orgId, {
-                        method: 'DELETE'
-                    });
+                // 파트 옵션 업데이트 함수
+                window.updateEditPartOptions = function() {
+                    const teamSelect = document.getElementById('editUserTeam');
+                    const partSelect = document.getElementById('editUserPart');
+                    const selectedTeam = teamSelect.value;
                     
-                    const deleteData = await deleteResponse.json();
+                    partSelect.innerHTML = '<option value="">파트를 선택하세요</option>';
                     
-                    if (deleteData.success) {
-                        refreshOrganization();
-                        showToast('조직이 삭제되었습니다.', 'info');
-                    } else {
-                        showToast(deleteData.message || '삭제에 실패했습니다.', 'error');
+                    if (selectedTeam) {
+                        const parts = organizations.filter(org => org.type === 'part' && org.parentId === selectedTeam);
+                        parts.forEach(part => {
+                            const option = document.createElement('option');
+                            option.value = part.id;
+                            option.textContent = part.name;
+                            if (user.part === part.name) option.selected = true;
+                            partSelect.appendChild(option);
+                        });
                     }
+                };
+                
+                // 초기 파트 옵션 로드
+                document.body.appendChild(modal);
+                
+                // 현재 사용자의 팀에 따른 파트 옵션 로드
+                const currentTeam = teams.find(team => team.name === user.team);
+                if (currentTeam) {
+                    document.getElementById('editUserTeam').value = currentTeam.id;
+                    window.updateEditPartOptions();
                 }
-            } catch (error) {
-                console.error('조직 삭제 오류:', error);
-                showToast('조직 삭제 중 오류가 발생했습니다.', 'error');
-            }
-        };
-
-        // 시스템 관리 함수들
-        window.exportUserList = function() {
-            showToast('사용자 목록 내보내기 기능을 준비 중입니다.', 'info');
-        };
-
-        window.testEmailService = async function() {
-            try {
-                const response = await fetch('/api/test-email', {
-                    method: 'POST'
+                
+                // 폼 제출 처리
+                document.getElementById('editUserForm').addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    const name = document.getElementById('editUserName').value.trim();
+                    const role = document.getElementById('editUserRole').value;
+                    const teamId = document.getElementById('editUserTeam').value;
+                    const partId = document.getElementById('editUserPart').value;
+                    
+                    if (!name) return showToast('이름을 입력해주세요.', 'error');
+                    if (!teamId) return showToast('소속 팀을 선택해주세요.', 'error');
+                    if (!partId) return showToast('소속 파트를 선택해주세요.', 'error');
+                    
+                    try {
+                        const currentUser = getCurrentUser();
+                        const data = await apiCall('/api/users/' + email, {
+                            method: 'PUT',
+                            body: JSON.stringify({
+                                name: name,
+                                role: role,
+                                team: teamId,
+                                part: partId,
+                                updaterEmail: currentUser.email
+                            })
+                        });
+                        
+                        showToast(data.message, data.success ? 'success' : 'error');
+                        if (data.success) {
+                            window.closeEditModal();
+                            refreshAllUsers();
+                            updateDashboardStats();
+                        }
+                    } catch (error) {
+                        console.error('사용자 수정 오류:', error);
+                        showToast('사용자 수정 중 오류가 발생했습니다.', 'error');
+                    }
                 });
                 
+            } catch (error) {
+                console.error('사용자 수정 모달 오류:', error);
+                showToast('사용자 수정 모달을 열 수 없습니다.', 'error');
+            }
+        };
+
+        // 대시보드 통계 업데이트 함수
+        window.updateDashboardStats = async function() {
+            try {
+                console.log('🔄 대시보드 통계 업데이트 시작...');
+                const data = await apiCall('/api/users');
+                console.log('📊 API 응답 데이터:', data);
+                if (!data.success) throw new Error(data.message);
+                
+                const totalUsers = data.users.length;
+                const pendingUsers = data.users.filter(user => user.status === 'pending').length;
+                const approvedUsers = data.users.filter(user => user.status === 'approved').length;
+                
+                console.log('📈 통계 계산 결과:', { totalUsers, pendingUsers, approvedUsers });
+                
+                // 관리자 대시보드 통계 업데이트
+                const adminTotalUsersEl = document.getElementById('adminTotalUsers');
+                const adminPendingUsersEl = document.getElementById('adminPendingUsers');
+                
+                console.log('🎯 HTML 요소 찾기:', { 
+                    adminTotalUsersEl: !!adminTotalUsersEl, 
+                    adminPendingUsersEl: !!adminPendingUsersEl 
+                });
+                
+                if (adminTotalUsersEl) {
+                    adminTotalUsersEl.textContent = totalUsers;
+                    console.log('✅ adminTotalUsers 업데이트:', totalUsers);
+                } else {
+                    console.warn('⚠️ adminTotalUsers 요소를 찾을 수 없습니다');
+                }
+                
+                if (adminPendingUsersEl) {
+                    adminPendingUsersEl.textContent = pendingUsers;
+                    console.log('✅ adminPendingUsers 업데이트:', pendingUsers);
+                } else {
+                    console.warn('⚠️ adminPendingUsers 요소를 찾을 수 없습니다');
+                }
+                
+                // 최근 가입 승인 요청 업데이트
+                const adminRecentSignupsEl = document.getElementById('adminRecentSignups');
+                if (adminRecentSignupsEl) {
+                    const recentPendingUsers = data.users
+                        .filter(user => user.status === 'pending')
+                        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                        .slice(0, 3);
+                    
+                    if (recentPendingUsers.length === 0) {
+                        adminRecentSignupsEl.innerHTML = '<p class="text-gray-600">승인 대기 중인 회원이 없습니다.</p>';
+                    } else {
+                        adminRecentSignupsEl.innerHTML = recentPendingUsers.map(user => 
+                            '<div class="flex items-center justify-between p-2 bg-yellow-50 border border-yellow-200 rounded">' +
+                                '<div class="flex items-center space-x-2">' +
+                                    '<i class="fas fa-user-clock text-yellow-600"></i>' +
+                                    '<div>' +
+                                        '<p class="text-sm font-medium text-gray-900">' + user.name + '</p>' +
+                                        '<p class="text-xs text-gray-600">' + user.email + '</p>' +
+                                        (user.team && user.part ? '<p class="text-xs text-blue-600">' + user.team + ' > ' + user.part + '</p>' : '') +
+                                    '</div>' +
+                                '</div>' +
+                                '<div class="text-xs text-gray-500">' +
+                                    new Date(user.createdAt).toLocaleDateString('ko-KR') +
+                                '</div>' +
+                            '</div>'
+                        ).join('');
+                    }
+                }
+                
+                console.log('📈 대시보드 통계 업데이트 완료: 전체 ' + totalUsers + '명, 대기 ' + pendingUsers + '명');
+            } catch (error) {
+                console.error('대시보드 통계 업데이트 오류:', error);
+            }
+        };
+
+        // 사용자 삭제
+        window.deleteUser = async function(email) {
+            if (!isAdmin()) {
+                showToast('관리자 권한이 필요합니다.', 'error');
+                return;
+            }
+            
+            // 현재 로그인한 사용자 확인
+            const currentUser = getCurrentUser();
+            if (!currentUser) {
+                showToast('로그인이 필요합니다.', 'error');
+                return;
+            }
+            
+            // 자기 자신 삭제 방지
+            if (email === currentUser.email) {
+                showToast('자기 자신은 삭제할 수 없습니다.', 'error');
+                return;
+            }
+            
+            // 삭제 확인
+            const userToDelete = await getUserByEmail(email);
+            if (!userToDelete) {
+                showToast('사용자 정보를 찾을 수 없습니다.', 'error');
+                return;
+            }
+            
+            const confirmMessage = '정말로 "' + userToDelete.name + '" 사용자를 삭제하시겠습니까?\\n\\n⚠️ 주의사항:\\n- 사용자 계정이 영구 삭제됩니다\\n- 평가 데이터는 보존됩니다\\n- 이 작업은 되돌릴 수 없습니다';
+            
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+            
+            try {
+                const data = await apiCall('/api/users/' + encodeURIComponent(email), {
+                    method: 'DELETE',
+                    body: JSON.stringify({ deleterEmail: currentUser.email })
+                });
+                
+                showToast(data.message, data.success ? 'success' : 'error');
+                
+                if (data.success) {
+                    // 사용자 목록 새로고침
+                    refreshAllUsers();
+                    refreshPendingUsers();
+                    updateDashboardStats();
+                }
+            } catch (error) {
+                console.error('사용자 삭제 오류:', error);
+                showToast('사용자 삭제 중 오류가 발생했습니다.', 'error');
+            }
+        };
+        
+        // 이메일로 사용자 정보 가져오기 (헬퍼 함수)
+        async function getUserByEmail(email) {
+            try {
+                const data = await apiCall('/api/users');
+                if (data.success) {
+                    return data.users.find(user => user.email === email);
+                }
+                return null;
+            } catch (error) {
+                console.error('사용자 정보 가져오기 오류:', error);
+                return null;
+            }
+        }
+        
+        console.log('✅ User Management 로드됨');
+        </script>
+
+        <!-- 🎯 Main App Logic - 메인 애플리케이션 -->
+        <script>
+        // 조직 폼 처리는 별도 초기화에서 처리
+
+        console.log('✅ Main App Logic 로드됨');
+        
+        // 대시보드 초기화 및 통계 업데이트
+        console.log('🚀 대시보드 초기화 시작...');
+        console.log('🔍 updateDashboardStats 함수 존재 여부:', typeof updateDashboardStats);
+        
+        // 페이지 로드 완료 후 관리자 대시보드 통계 업데이트 시도
+        if (typeof updateDashboardStats === 'function') {
+            console.log('⏱️ 2초 후 관리자 대시보드 통계 업데이트 시도...');
+            setTimeout(() => {
+                // 현재 사용자가 관리자이고 대시보드 요소가 있는지 확인
+                const user = getCurrentUser();
+                const adminPendingEl = document.getElementById('adminPendingUsers');
+                
+                console.log('👤 현재 사용자:', user);
+                console.log('🎯 관리자 대시보드 요소 존재:', !!adminPendingEl);
+                
+                if (user && user.role === 'admin' && adminPendingEl) {
+                    console.log('🎯 관리자 대시보드 자동 업데이트 실행!');
+                    updateDashboardStats();
+                    console.log('📈 대시보드 초기 통계 로드 완료');
+                } else {
+                    console.log('ℹ️ 관리자가 아니거나 대시보드 요소가 없음');
+                }
+            }, 2000);
+        } else {
+            console.error('❌ updateDashboardStats 함수를 찾을 수 없습니다!');
+        }
+        
+        // 새로운 평가 시스템 UI/UX 관리 함수들
+        let quantitativeItems = {};
+        let qualitativeItems = {};
+        let evaluationTargets = {};
+        let currentWizardStep = 1;
+        let selectedEvaluationType = null;
+        let currentWizardData = {};
+
+        // 탭 전환 함수
+        function switchEvaluationTab(tabName) {
+            try {
+                console.log('🔄 평가 탭 전환:', tabName);
+                
+                // 모든 탭 버튼 초기화
+                document.querySelectorAll('[id^="tab-"]').forEach(tab => {
+                    if (tab) {
+                        tab.className = tab.className.replace(/bg-blue-\d+|text-blue-\d+|border-blue-\d+/, 'text-gray-500');
+                        tab.classList.add('hover:text-gray-700', 'hover:bg-gray-50');
+                        tab.classList.remove('border-b-2');
+                    }
+                });
+                
+                // 활성 탭 스타일 적용
+                const activeTab = document.getElementById(\`tab-\${tabName}\`);
+                if (activeTab) {
+                    activeTab.className = 'flex-1 px-6 py-4 text-center font-medium text-blue-600 bg-blue-50 border-b-2 border-blue-500';
+                }
+                
+                // 모든 탭 컨텐츠 숨기기
+                document.querySelectorAll('.evaluation-tab-content').forEach(content => {
+                    if (content) content.classList.add('hidden');
+                });
+                
+                // 선택된 탭 컨텐츠 보이기
+                const targetContent = document.getElementById(\`evaluation-\${tabName}\`);
+                if (targetContent) {
+                    targetContent.classList.remove('hidden');
+                }
+                
+                // 탭별 초기 로드
+                if (tabName === 'dashboard') {
+                    updateDashboardStats();
+                } else if (tabName === 'items') {
+                    loadEvaluationItemsGrid();
+                } else if (tabName === 'assignment') {
+                    loadAssignmentInterface();
+                }
+                
+                console.log('✅ 평가 탭 전환 완료:', tabName);
+            } catch (error) {
+                console.error('❌ 평가 탭 전환 오류:', error);
+            }
+        }
+
+        // 대시보드 통계 업데이트
+        function updateDashboardStats() {
+            try {
+                const quantCount = Object.keys(quantitativeItems).length || 3;
+                const qualCount = Object.keys(qualitativeItems).length || 4;
+                const assignCount = Object.keys(evaluationTargets).length || 2;
+                
+                const quantEl = document.getElementById('quantitativeCount');
+                const qualEl = document.getElementById('qualitativeCount');
+                const assignEl = document.getElementById('assignmentCount');
+                const weightEl = document.getElementById('quantitativeWeight');
+                
+                if (quantEl) quantEl.textContent = quantCount;
+                if (qualEl) qualEl.textContent = qualCount;
+                if (assignEl) assignEl.textContent = assignCount;
+                
+                const totalWeight = Object.values(quantitativeItems).reduce((sum, item) => sum + (item.weight || 0), 0) || 100;
+                if (weightEl) weightEl.textContent = totalWeight + '%';
+                
+                console.log('✅ 대시보드 통계 업데이트 완료');
+            } catch (error) {
+                console.error('❌ 대시보드 통계 업데이트 오류:', error);
+            }
+        }
+
+        // 평가 항목 그리드 로드
+        function loadEvaluationItemsGrid() {
+            loadQuantitativeGrid();
+            loadQualitativeGrid();
+        }
+
+        function loadQuantitativeGrid() {
+            try {
+                const container = document.getElementById('quantitativeItemsGrid');
+                if (!container) {
+                    console.log('⚠️ quantitativeItemsGrid 요소를 찾을 수 없음');
+                    return;
+                }
+                
+                const defaultItems = [
+                    { id: 'goal_achievement', name: '목표 달성률', description: '개인 목표 대비 달성 비율 (%)', weight: 40 },
+                    { id: 'kpi_performance', name: 'KPI 성과', description: '핵심성과지표 달성도 (1-5점)', weight: 35 },
+                    { id: 'project_contribution', name: '프로젝트 기여도', description: '프로젝트 성공도 및 기여 수준', weight: 25 }
+                ];
+                
+                const items = Object.keys(quantitativeItems).length > 0 ? 
+                    Object.values(quantitativeItems) : defaultItems;
+            
+            container.innerHTML = items.map(item => \`
+                <div class="evaluation-item-card bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <h5 class="font-semibold text-gray-900">\${item.name}</h5>
+                                <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">가중치: \${item.weight}%</span>
+                            </div>
+                            <p class="text-sm text-gray-600">\${item.description}</p>
+                        </div>
+                        <div class="flex items-center space-x-1 ml-3">
+                            <button onclick="quickEditItem('quantitative', '\${item.id}')" 
+                                    class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
+                                    title="편집">
+                                <i class="fas fa-edit text-sm"></i>
+                            </button>
+                            <button onclick="duplicateItem('quantitative', '\${item.id}')" 
+                                    class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" 
+                                    title="복사">
+                                <i class="fas fa-copy text-sm"></i>
+                            </button>
+                            <button onclick="deleteEvaluationItem('quantitative', '\${item.id}')" 
+                                    class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" 
+                                    title="삭제">
+                                <i class="fas fa-trash text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            \`).join('');
+        }
+
+        function loadQualitativeGrid() {
+            const container = document.getElementById('qualitativeItemsGrid');
+            const defaultItems = [
+                { id: 'leadership', name: '리더십', description: '팀을 이끄는 능력과 영향력', scale: '1-5' },
+                { id: 'communication', name: '의사소통', description: '명확하고 효과적인 커뮤니케이션', scale: '1-5' },
+                { id: 'expertise', name: '전문성', description: '직무 관련 지식과 기술 수준', scale: '1-5' },
+                { id: 'collaboration', name: '협업 능력', description: '팀워크와 상호 협력 정도', scale: '1-5' }
+            ];
+            
+            const items = Object.keys(qualitativeItems).length > 0 ? 
+                Object.values(qualitativeItems) : defaultItems;
+            
+            container.innerHTML = items.map(item => \`
+                <div class="evaluation-item-card bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <h5 class="font-semibold text-gray-900">\${item.name}</h5>
+                                <span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">\${item.scale}</span>
+                            </div>
+                            <p class="text-sm text-gray-600">\${item.description}</p>
+                        </div>
+                        <div class="flex items-center space-x-1 ml-3">
+                            <button onclick="quickEditItem('qualitative', '\${item.id}')" 
+                                    class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
+                                    title="편집">
+                                <i class="fas fa-edit text-sm"></i>
+                            </button>
+                            <button onclick="duplicateItem('qualitative', '\${item.id}')" 
+                                    class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" 
+                                    title="복사">
+                                <i class="fas fa-copy text-sm"></i>
+                            </button>
+                            <button onclick="deleteEvaluationItem('qualitative', '\${item.id}')" 
+                                    class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" 
+                                    title="삭제">
+                                <i class="fas fa-trash text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            \`).join('');
+        }
+
+        // 평가 항목 등록 마법사
+        function startEvaluationWizard(type) {
+            selectedEvaluationType = type;
+            currentWizardStep = 1;
+            currentWizardData = { type: type };
+            
+            // 모달 표시
+            document.getElementById('evaluationWizardModal').classList.remove('hidden');
+            document.getElementById('evaluationWizardModal').classList.add('flex');
+            
+            // 첫 번째 단계로 초기화
+            showWizardStep(1);
+            
+            // 유형에 따라 자동 선택
+            if (type) {
+                selectEvaluationType(type);
+            }
+        }
+
+        function selectEvaluationType(type) {
+            selectedEvaluationType = type;
+            currentWizardData.type = type;
+            
+            // 카드 스타일 업데이트
+            document.querySelectorAll('.evaluation-type-card').forEach(card => {
+                card.classList.remove('border-blue-500', 'bg-blue-50', 'border-green-500', 'bg-green-50');
+                card.classList.add('border-gray-200');
+            });
+            
+            const selectedCard = document.querySelector(\`button[onclick="selectEvaluationType('\${type}')"]\`);
+            if (type === 'quantitative') {
+                selectedCard.classList.add('border-blue-500', 'bg-blue-50');
+            } else {
+                selectedCard.classList.add('border-green-500', 'bg-green-50');
+            }
+            
+            // 다음 버튼 활성화
+            document.getElementById('wizardNextBtn').disabled = false;
+        }
+
+        function showWizardStep(step) {
+            // 모든 단계 숨기기
+            document.querySelectorAll('.wizard-step').forEach(stepEl => {
+                stepEl.classList.add('hidden');
+            });
+            
+            // 현재 단계 보이기
+            document.getElementById(\`wizard-step-\${step}\`).classList.remove('hidden');
+            
+            // 진행 표시기 업데이트
+            updateWizardProgress(step);
+            
+            // 버튼 상태 업데이트
+            document.getElementById('wizardPrevBtn').disabled = step === 1;
+            
+            const nextBtn = document.getElementById('wizardNextBtn');
+            if (step === 4) {
+                nextBtn.textContent = '저장';
+                nextBtn.onclick = saveWizardData;
+            } else {
+                nextBtn.innerHTML = '다음 <i class="fas fa-arrow-right ml-2"></i>';
+                nextBtn.onclick = nextWizardStep;
+            }
+            
+            currentWizardStep = step;
+        }
+
+        function updateWizardProgress(step) {
+            for (let i = 1; i <= 4; i++) {
+                const indicator = document.getElementById(\`step\${i}-indicator\`);
+                if (i <= step) {
+                    indicator.classList.add('bg-white', 'text-indigo-600');
+                    indicator.classList.remove('bg-opacity-30');
+                } else {
+                    indicator.classList.remove('bg-white', 'text-indigo-600');
+                    indicator.classList.add('bg-opacity-30');
+                }
+            }
+        }
+
+        function nextWizardStep() {
+            if (validateWizardStep(currentWizardStep)) {
+                if (currentWizardStep === 3) {
+                    generateWizardSummary();
+                }
+                showWizardStep(currentWizardStep + 1);
+            }
+        }
+
+        function previousWizardStep() {
+            if (currentWizardStep > 1) {
+                showWizardStep(currentWizardStep - 1);
+            }
+        }
+
+        function validateWizardStep(step) {
+            switch(step) {
+                case 1:
+                    return selectedEvaluationType !== null;
+                case 2:
+                    const name = document.getElementById('wizardItemName').value.trim();
+                    const desc = document.getElementById('wizardItemDescription').value.trim();
+                    if (!name || !desc) {
+                        alert('항목명과 설명을 모두 입력해주세요.');
+                        return false;
+                    }
+                    currentWizardData.name = name;
+                    currentWizardData.description = desc;
+                    return true;
+                case 3:
+                    if (selectedEvaluationType === 'quantitative') {
+                        const weight = document.getElementById('wizardWeightSlider').value;
+                        const unit = document.getElementById('wizardUnit').value;
+                        currentWizardData.weight = parseInt(weight);
+                        currentWizardData.unit = unit;
+                        
+                        // 3단계에서 상세 설정 표시
+                        document.getElementById('quantitative-settings').classList.remove('hidden');
+                        document.getElementById('qualitative-settings').classList.add('hidden');
+                    } else {
+                        const scale = document.querySelector('input[name="scale"]:checked').value;
+                        currentWizardData.scale = scale;
+                        
+                        // 3단계에서 상세 설정 표시
+                        document.getElementById('qualitative-settings').classList.remove('hidden');
+                        document.getElementById('quantitative-settings').classList.add('hidden');
+                    }
+                    return true;
+                default:
+                    return true;
+            }
+        }
+
+        function generateWizardSummary() {
+            const container = document.getElementById('wizardSummary');
+            let summaryHtml = \`
+                <div class="space-y-4">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-\${selectedEvaluationType === 'quantitative' ? 'chart-bar text-blue-500' : 'comments text-green-500'} text-2xl"></i>
+                        <div>
+                            <h5 class="font-semibold text-lg">\${currentWizardData.name}</h5>
+                            <p class="text-gray-600">\${selectedEvaluationType === 'quantitative' ? '정량평가' : '정성평가'} 항목</p>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-4 rounded-lg border">
+                        <h6 class="font-medium text-gray-900 mb-2">설명</h6>
+                        <p class="text-gray-700">\${currentWizardData.description}</p>
+                    </div>
+            \`;
+            
+            if (selectedEvaluationType === 'quantitative') {
+                summaryHtml += \`
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-white p-4 rounded-lg border">
+                            <h6 class="font-medium text-gray-900 mb-2">가중치</h6>
+                            <p class="text-2xl font-bold text-blue-600">\${currentWizardData.weight}%</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg border">
+                            <h6 class="font-medium text-gray-900 mb-2">측정 단위</h6>
+                            <p class="text-gray-700">\${currentWizardData.unit}</p>
+                        </div>
+                    </div>
+                \`;
+            } else {
+                summaryHtml += \`
+                    <div class="bg-white p-4 rounded-lg border">
+                        <h6 class="font-medium text-gray-900 mb-2">평가 척도</h6>
+                        <p class="text-green-600 font-semibold">\${currentWizardData.scale}</p>
+                    </div>
+                \`;
+            }
+            
+            summaryHtml += '</div>';
+            container.innerHTML = summaryHtml;
+        }
+
+        function saveWizardData() {
+            const itemId = 'item_' + Date.now();
+            
+            if (selectedEvaluationType === 'quantitative') {
+                quantitativeItems[itemId] = { ...currentWizardData, id: itemId };
+            } else {
+                qualitativeItems[itemId] = { ...currentWizardData, id: itemId };
+            }
+            
+            closeEvaluationWizard();
+            loadEvaluationItemsGrid();
+            updateDashboardStats();
+            showNotification(\`\${selectedEvaluationType === 'quantitative' ? '정량' : '정성'}평가 항목이 추가되었습니다.\`, 'success');
+        }
+
+        function closeEvaluationWizard() {
+            document.getElementById('evaluationWizardModal').classList.add('hidden');
+            document.getElementById('evaluationWizardModal').classList.remove('flex');
+            
+            // 초기화
+            currentWizardStep = 1;
+            selectedEvaluationType = null;
+            currentWizardData = {};
+        }
+
+        function updateWeightDisplay(value) {
+            document.getElementById('wizardWeightDisplay').textContent = value + '%';
+        }
+
+        // 빠른 추가 기능들
+        function quickAddQuantitativeItem() {
+            document.getElementById('quickAddType').value = 'quantitative';
+            document.getElementById('quickAddItemId').value = '';
+            document.getElementById('quickAddTitle').textContent = '정량평가 항목 빠른 추가';
+            document.getElementById('quickAddName').value = '';
+            document.getElementById('quickAddDescription').value = '';
+            document.getElementById('quickAddWeight').value = '20';
+            document.getElementById('quickAddWeightSection').style.display = 'block';
+            document.getElementById('quickAddScaleSection').style.display = 'none';
+            document.getElementById('quickAddModal').classList.remove('hidden');
+            document.getElementById('quickAddModal').classList.add('flex');
+        }
+
+        function quickAddQualitativeItem() {
+            document.getElementById('quickAddType').value = 'qualitative';
+            document.getElementById('quickAddItemId').value = '';
+            document.getElementById('quickAddTitle').textContent = '정성평가 항목 빠른 추가';
+            document.getElementById('quickAddName').value = '';
+            document.getElementById('quickAddDescription').value = '';
+            document.getElementById('quickAddScale').value = '1-5';
+            document.getElementById('quickAddWeightSection').style.display = 'none';
+            document.getElementById('quickAddScaleSection').style.display = 'block';
+            document.getElementById('quickAddModal').classList.remove('hidden');
+            document.getElementById('quickAddModal').classList.add('flex');
+        }
+
+        function quickEditItem(type, itemId) {
+            const items = type === 'quantitative' ? quantitativeItems : qualitativeItems;
+            const item = items[itemId] || getDefaultItem(type, itemId);
+            
+            document.getElementById('quickAddType').value = type;
+            document.getElementById('quickAddItemId').value = itemId;
+            document.getElementById('quickAddTitle').textContent = \`\${type === 'quantitative' ? '정량' : '정성'}평가 항목 편집\`;
+            document.getElementById('quickAddName').value = item.name || '';
+            document.getElementById('quickAddDescription').value = item.description || '';
+            
+            if (type === 'quantitative') {
+                document.getElementById('quickAddWeight').value = item.weight || 20;
+                document.getElementById('quickAddWeightSection').style.display = 'block';
+                document.getElementById('quickAddScaleSection').style.display = 'none';
+            } else {
+                document.getElementById('quickAddScale').value = item.scale || '1-5';
+                document.getElementById('quickAddWeightSection').style.display = 'none';
+                document.getElementById('quickAddScaleSection').style.display = 'block';
+            }
+            
+            document.getElementById('quickAddModal').classList.remove('hidden');
+            document.getElementById('quickAddModal').classList.add('flex');
+        }
+
+        function duplicateItem(type, itemId) {
+            const items = type === 'quantitative' ? quantitativeItems : qualitativeItems;
+            const item = items[itemId] || getDefaultItem(type, itemId);
+            
+            const newItemId = 'item_' + Date.now();
+            const newItem = { ...item, id: newItemId, name: item.name + ' (복사)' };
+            
+            if (type === 'quantitative') {
+                quantitativeItems[newItemId] = newItem;
+            } else {
+                qualitativeItems[newItemId] = newItem;
+            }
+            
+            loadEvaluationItemsGrid();
+            updateDashboardStats();
+            showNotification(\`\${item.name}이(가) 복사되었습니다.\`, 'success');
+        }
+
+        function deleteEvaluationItem(type, itemId) {
+            const items = type === 'quantitative' ? quantitativeItems : qualitativeItems;
+            const item = items[itemId] || getDefaultItem(type, itemId);
+            
+            if (confirm(\`정말로 '\${item.name}' 항목을 삭제하시겠습니까?\`)) {
+                if (type === 'quantitative') {
+                    delete quantitativeItems[itemId];
+                } else {
+                    delete qualitativeItems[itemId];
+                }
+                
+                loadEvaluationItemsGrid();
+                updateDashboardStats();
+                showNotification(\`\${item.name}이(가) 삭제되었습니다.\`, 'success');
+            }
+        }
+
+        function getDefaultItem(type, itemId) {
+            if (type === 'quantitative') {
+                return getDefaultQuantitativeItem(itemId);
+            } else {
+                return getDefaultQualitativeItem(itemId);
+            }
+        }
+
+        function closeQuickAddModal() {
+            document.getElementById('quickAddModal').classList.add('hidden');
+            document.getElementById('quickAddModal').classList.remove('flex');
+        }
+
+        // 빠른 추가 폼 제출
+        document.getElementById('quickAddForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const type = document.getElementById('quickAddType').value;
+            const itemId = document.getElementById('quickAddItemId').value || 'item_' + Date.now();
+            const name = document.getElementById('quickAddName').value;
+            const description = document.getElementById('quickAddDescription').value;
+
+            if (!name || !description) {
+                alert('항목명과 설명을 모두 입력해주세요.');
+                return;
+            }
+
+            const itemData = {
+                id: itemId,
+                name: name,
+                description: description
+            };
+
+            if (type === 'quantitative') {
+                const weight = document.getElementById('quickAddWeight').value;
+                itemData.weight = parseInt(weight);
+                quantitativeItems[itemId] = itemData;
+            } else {
+                const scale = document.getElementById('quickAddScale').value;
+                itemData.scale = scale;
+                qualitativeItems[itemId] = itemData;
+            }
+
+            closeQuickAddModal();
+            loadEvaluationItemsGrid();
+            updateDashboardStats();
+            showNotification(\`\${type === 'quantitative' ? '정량' : '정성'}평가 항목이 저장되었습니다.\`, 'success');
+        });
+
+        // 기존 함수들 (호환성을 위해 유지)
+        function addQuantitativeItem() {
+            startEvaluationWizard('quantitative');
+        }
+
+        // 기존 함수들 (새로운 UI와 호환)
+        function addQualitativeItem() {
+            startEvaluationWizard('qualitative');
+        }
+
+        function editQuantitativeItem(itemId) {
+            quickEditItem('quantitative', itemId);
+        }
+
+        function editQualitativeItem(itemId) {
+            quickEditItem('qualitative', itemId);
+        }
+
+        function deleteQuantitativeItem(itemId) {
+            deleteEvaluationItem('quantitative', itemId);
+        }
+
+        function deleteQualitativeItem(itemId) {
+            deleteEvaluationItem('qualitative', itemId);
+        }
+
+        // 평가 대상 관리 (기존 호환)
+        function showEvaluationTargetModal() {
+            switchEvaluationTab('assignment');
+        }
+
+        function editEvaluationTarget(targetId) {
+            switchEvaluationTab('assignment');
+            setTimeout(() => selectOrganization(targetId), 100);
+        }
+
+        // 배정 저장
+        function saveAssignments() {
+            // 현재 배정된 항목들 수집
+            const assignments = {};
+            
+            document.querySelectorAll('[id^="assigned-items-"]').forEach(container => {
+                const orgId = container.id.replace('assigned-items-', '');
+                const items = Array.from(container.querySelectorAll('[data-assigned-item]')).map(el => 
+                    el.dataset.assignedItem
+                );
+                
+                if (items.length > 0) {
+                    assignments[orgId] = items;
+                }
+            });
+            
+            // 저장 로직
+            evaluationTargets = { ...evaluationTargets, ...assignments };
+            
+            showNotification('평가 배정이 저장되었습니다.', 'success');
+            console.log('저장된 배정:', assignments);
+        }
+
+        function closeAssignmentModal() {
+            // 현재는 탭 방식이므로 별도 처리 불필요
+        }
+
+        // 기본값 가져오기 함수들
+        function getDefaultQuantitativeItem(itemId) {
+            const defaults = {
+                'goal_achievement': { name: '목표 달성률', description: '개인 목표 대비 달성 비율 (%)', weight: 40 },
+                'kpi_performance': { name: 'KPI 성과', description: '핵심성과지표 달성도 (1-5점)', weight: 35 },
+                'project_contribution': { name: '프로젝트 기여도', description: '프로젝트 성공도 및 기여 수준', weight: 25 }
+            };
+            return defaults[itemId] || { name: '', description: '', weight: 0 };
+        }
+
+        function getDefaultQualitativeItem(itemId) {
+            const defaults = {
+                'leadership': { name: '리더십', description: '팀을 이끄는 능력과 영향력', scale: '1-5' },
+                'communication': { name: '의사소통', description: '명확하고 효과적인 커뮤니케이션', scale: '1-5' },
+                'expertise': { name: '전문성', description: '직무 관련 지식과 기술 수준', scale: '1-5' },
+                'collaboration': { name: '협업 능력', description: '팀워크와 상호 협력 정도', scale: '1-5' }
+            };
+            return defaults[itemId] || { name: '', description: '', scale: '1-5' };
+        }
+
+        // 폼 제출 처리
+        document.getElementById('quantitativeForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const itemId = document.getElementById('quantitativeItemId').value || 'item_' + Date.now();
+            const name = document.getElementById('quantitativeItemName').value;
+            const description = document.getElementById('quantitativeItemDescription').value;
+            const weight = document.getElementById('quantitativeItemWeight').value;
+
+            if (!name || !description || !weight) {
+                alert('모든 필드를 입력해주세요.');
+                return;
+            }
+
+            quantitativeItems[itemId] = { name, description, weight };
+            updateQuantitativeItemDisplay(itemId, name, description, weight);
+            closeQuantitativeModal();
+            showNotification('정량평가 항목이 저장되었습니다.', 'success');
+        });
+
+        document.getElementById('qualitativeForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const itemId = document.getElementById('qualitativeItemId').value || 'item_' + Date.now();
+            const name = document.getElementById('qualitativeItemName').value;
+            const description = document.getElementById('qualitativeItemDescription').value;
+            const scale = document.getElementById('qualitativeItemScale').value;
+
+            if (!name || !description) {
+                alert('모든 필드를 입력해주세요.');
+                return;
+            }
+
+            qualitativeItems[itemId] = { name, description, scale };
+            updateQualitativeItemDisplay(itemId, name, description, scale);
+            closeQualitativeModal();
+            showNotification('정성평가 항목이 저장되었습니다.', 'success');
+        });
+
+        document.getElementById('evaluationTargetForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const organization = document.getElementById('targetOrganization').value;
+            const cycle = document.getElementById('targetCycle').value;
+            const specialItems = document.getElementById('targetSpecialItems').value;
+
+            if (!organization) {
+                alert('조직을 선택해주세요.');
+                return;
+            }
+
+            evaluationTargets[organization] = { cycle, specialItems };
+            updateEvaluationTargetDisplay(organization, cycle, specialItems);
+            closeEvaluationTargetModal();
+            showNotification('평가 대상이 설정되었습니다.', 'success');
+        });
+
+        // 화면 업데이트 함수들
+        function updateQuantitativeItemDisplay(itemId, name, description, weight) {
+            let element = document.querySelector(\`[data-item-id="\${itemId}"]\`);
+            
+            if (!element) {
+                // 새 항목 생성
+                element = document.createElement('div');
+                element.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
+                element.setAttribute('data-item-id', itemId);
+                document.getElementById('quantitativeItems').appendChild(element);
+            }
+            
+            element.innerHTML = \`
+                <div>
+                    <span class="font-medium">\${name}</span>
+                    <p class="text-sm text-gray-600">\${description}</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-sm text-gray-500">가중치: \${weight}%</span>
+                    <button onclick="editQuantitativeItem('\${itemId}')" class="text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button onclick="deleteQuantitativeItem('\${itemId}')" class="text-red-600 hover:text-red-800">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            \`;
+        }
+
+        function updateQualitativeItemDisplay(itemId, name, description, scale) {
+            let element = document.querySelector(\`[data-item-id="\${itemId}"]\`);
+            
+            if (!element) {
+                // 새 항목 생성
+                element = document.createElement('div');
+                element.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
+                element.setAttribute('data-item-id', itemId);
+                document.getElementById('qualitativeItems').appendChild(element);
+            }
+            
+            element.innerHTML = \`
+                <div>
+                    <span class="font-medium">\${name}</span>
+                    <p class="text-sm text-gray-600">\${description}</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-sm text-gray-500">\${scale}</span>
+                    <button onclick="editQualitativeItem('\${itemId}')" class="text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button onclick="deleteQualitativeItem('\${itemId}')" class="text-red-600 hover:text-red-800">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            \`;
+        }
+
+        function updateEvaluationTargetDisplay(organization, cycle, specialItems) {
+            console.log('평가 대상 업데이트:', organization, cycle, specialItems);
+            showNotification(\`\${organization} 평가 설정이 업데이트되었습니다.\`, 'info');
+        }
+
+        // Sales팀 목표 데이터 로드
+        async function loadSalesTargets() {
+            try {
+                const response = await fetch('/api/evaluation/sales-targets');
                 const data = await response.json();
                 
                 if (data.success) {
-                    showToast('테스트 이메일이 발송되었습니다.', 'success');
+                    displaySalesTargets(data.salesTargets);
                 } else {
-                    showToast(data.message || '이메일 테스트에 실패했습니다.', 'error');
+                    console.error('Sales 목표 로드 실패:', data.message);
                 }
             } catch (error) {
-                console.error('이메일 테스트 오류:', error);
-                showToast('이메일 테스트 중 오류가 발생했습니다.', 'error');
+                console.error('Sales 목표 로드 오류:', error);
+                const container = document.getElementById('salesTargetsContainer');
+                container.innerHTML = \`
+                    <div class="text-center py-8 text-red-500">
+                        <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
+                        <p>목표 데이터 로드에 실패했습니다.</p>
+                    </div>
+                \`;
             }
-        };
+        }
 
-        window.cleanupInactiveUsers = function() {
-            showToast('비활성 사용자 정리 기능을 준비 중입니다.', 'info');
-        };
+        // Sales팀 목표 데이터 화면 표시
+        function displaySalesTargets(salesTargets) {
+            const container = document.getElementById('salesTargetsContainer');
+            
+            // 팀 전체 목표 요약
+            const teamSummary = \`
+                <div class="bg-gradient-to-r from-orange-50 to-red-50 p-4 rounded-lg border border-orange-200 mb-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h4 class="font-semibold text-orange-900">\${salesTargets.team} \${salesTargets.period}</h4>
+                            <p class="text-orange-700">팀 전체 목표매출: <span class="font-bold">\${salesTargets.totalTarget.toLocaleString()}천원</span></p>
+                        </div>
+                        <i class="fas fa-trophy text-orange-500 text-2xl"></i>
+                    </div>
+                </div>
+            \`;
 
-        window.showUserStats = function() {
-            showToast('사용자 통계 기능을 준비 중입니다.', 'info');
-        };
+            // 개별 구성원 목표
+            const membersHtml = salesTargets.members.map(member => {
+                const months = ['july', 'august', 'september', 'october', 'november', 'december'];
+                const monthNames = ['7월', '8월', '9월', '10월', '11월', '12월'];
+                
+                // 각 카테고리별 총합 계산
+                const totalGeneral = months.reduce((sum, month) => sum + (member.targets.general_saas[month] || 0), 0);
+                const totalPublic = months.reduce((sum, month) => sum + (member.targets.public_saas[month] || 0), 0);
+                const totalContracts = months.reduce((sum, month) => sum + (member.targets.new_contracts[month] || 0), 0);
+                const totalRevenue = totalGeneral + totalPublic;
+                
+                return \`
+                    <div class="bg-gray-50 p-4 rounded-lg border">
+                        <div class="flex items-center justify-between mb-3">
+                            <h5 class="font-semibold text-gray-900">\${member.name}</h5>
+                            <div class="text-sm text-gray-600">
+                                총 매출목표: <span class="font-semibold text-blue-600">\${totalRevenue.toLocaleString()}천원</span> | 
+                                총 계약목표: <span class="font-semibold text-green-600">\${totalContracts}건</span>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                            <!-- 일반 SaaS -->
+                            <div class="bg-white p-3 rounded border">
+                                <h6 class="font-medium text-blue-700 mb-2">
+                                    <i class="fas fa-desktop mr-1"></i>일반 SaaS (\${totalGeneral.toLocaleString()}천원)
+                                </h6>
+                                <div class="space-y-1 text-sm">
+                                    \${months.map((month, i) => 
+                                        \`<div class="flex justify-between">
+                                            <span>\${monthNames[i]}</span>
+                                            <span class="font-medium">\${(member.targets.general_saas[month] || 0).toLocaleString()}천원</span>
+                                        </div>\`
+                                    ).join('')}
+                                </div>
+                            </div>
+                            
+                            <!-- 공공 SaaS -->
+                            <div class="bg-white p-3 rounded border">
+                                <h6 class="font-medium text-green-700 mb-2">
+                                    <i class="fas fa-building mr-1"></i>공공 SaaS (\${totalPublic.toLocaleString()}천원)
+                                </h6>
+                                <div class="space-y-1 text-sm">
+                                    \${months.map((month, i) => 
+                                        \`<div class="flex justify-between">
+                                            <span>\${monthNames[i]}</span>
+                                            <span class="font-medium">\${(member.targets.public_saas[month] || 0).toLocaleString()}천원</span>
+                                        </div>\`
+                                    ).join('')}
+                                </div>
+                            </div>
+                            
+                            <!-- 신규 계약건수 -->
+                            <div class="bg-white p-3 rounded border">
+                                <h6 class="font-medium text-purple-700 mb-2">
+                                    <i class="fas fa-handshake mr-1"></i>신규 계약건수 (\${totalContracts}건)
+                                </h6>
+                                <div class="space-y-1 text-sm">
+                                    \${months.map((month, i) => 
+                                        \`<div class="flex justify-between">
+                                            <span>\${monthNames[i]}</span>
+                                            <span class="font-medium">\${member.targets.new_contracts[month] || 0}건</span>
+                                        </div>\`
+                                    ).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                \`;
+            }).join('');
 
-        // 조직 폼 처리
-        window.addEventListener('DOMContentLoaded', function() {
-            // 조직 추가 폼 처리
-            const orgForm = document.getElementById('organizationForm');
-            if (orgForm) {
+            container.innerHTML = teamSummary + membersHtml;
+        }
+
+        // 평가 배정 인터페이스
+        function loadAssignmentInterface() {
+            loadOrganizationTree();
+            loadAssignmentItemPool();
+            loadAssignmentResults();
+        }
+
+        function loadOrganizationTree() {
+            const container = document.getElementById('organizationTree');
+            const organizations = [
+                { id: 'sales_team', name: 'Sales팀', icon: 'fas fa-users', color: 'blue' },
+                { id: 'cx_team', name: 'CX팀', icon: 'fas fa-headset', color: 'green' },
+                { id: 'sales_part', name: 'Sales 파트', icon: 'fas fa-user-tie', color: 'indigo' },
+                { id: 'cx_part', name: 'CX 파트', icon: 'fas fa-user-friends', color: 'purple' }
+            ];
+
+            container.innerHTML = organizations.map(org => \`
+                <button onclick="selectOrganization('\${org.id}')" 
+                        class="w-full text-left p-3 rounded-lg border border-gray-200 hover:bg-\${org.color}-50 hover:border-\${org.color}-300 transition-colors"
+                        data-org-id="\${org.id}">
+                    <div class="flex items-center space-x-3">
+                        <i class="\${org.icon} text-\${org.color}-600"></i>
+                        <span class="font-medium text-gray-900">\${org.name}</span>
+                    </div>
+                </button>
+            \`).join('');
+        }
+
+        function loadAssignmentItemPool() {
+            const container = document.getElementById('assignmentItemPool');
+            
+            const quantItems = Object.keys(quantitativeItems).length > 0 ? 
+                Object.values(quantitativeItems) : [
+                    { id: 'goal_achievement', name: '목표 달성률', type: 'quantitative' },
+                    { id: 'kpi_performance', name: 'KPI 성과', type: 'quantitative' },
+                    { id: 'project_contribution', name: '프로젝트 기여도', type: 'quantitative' }
+                ];
+
+            const qualItems = Object.keys(qualitativeItems).length > 0 ? 
+                Object.values(qualitativeItems) : [
+                    { id: 'leadership', name: '리더십', type: 'qualitative' },
+                    { id: 'communication', name: '의사소통', type: 'qualitative' },
+                    { id: 'expertise', name: '전문성', type: 'qualitative' },
+                    { id: 'collaboration', name: '협업 능력', type: 'qualitative' }
+                ];
+
+            const allItems = [
+                { title: '정량평가', items: quantItems, color: 'blue' },
+                { title: '정성평가', items: qualItems, color: 'green' }
+            ];
+
+            container.innerHTML = allItems.map(category => \`
+                <div class="mb-4">
+                    <h5 class="font-medium text-\${category.color}-900 mb-2">\${category.title}</h5>
+                    <div class="space-y-1">
+                        \${category.items.map(item => \`
+                            <div class="assignment-item p-2 bg-white rounded border border-gray-200 cursor-move hover:shadow-sm transition-shadow"
+                                 draggable="true" 
+                                 data-item-id="\${item.id}" 
+                                 data-item-type="\${item.type || category.title === '정량평가' ? 'quantitative' : 'qualitative'}"
+                                 ondragstart="handleDragStart(event)">
+                                <div class="flex items-center space-x-2">
+                                    <i class="fas fa-grip-lines text-gray-400"></i>
+                                    <span class="text-sm font-medium text-gray-900">\${item.name}</span>
+                                </div>
+                            </div>
+                        \`).join('')}
+                    </div>
+                </div>
+            \`).join('');
+        }
+
+        function selectOrganization(orgId) {
+            // 기존 선택 해제
+            document.querySelectorAll('[data-org-id]').forEach(btn => {
+                btn.classList.remove('bg-blue-100', 'border-blue-500');
+            });
+            
+            // 새 선택 적용
+            const selectedBtn = document.querySelector(\`[data-org-id="\${orgId}"]\`);
+            selectedBtn.classList.add('bg-blue-100', 'border-blue-500');
+            
+            // 드롭 존 업데이트
+            updateAssignmentDropZone(orgId);
+        }
+
+        function updateAssignmentDropZone(orgId) {
+            const dropZone = document.getElementById('assignmentDropZone');
+            const orgNames = {
+                'sales_team': 'Sales팀',
+                'cx_team': 'CX팀', 
+                'sales_part': 'Sales 파트',
+                'cx_part': 'CX 파트'
+            };
+            
+            dropZone.innerHTML = \`
+                <div class="text-center py-8">
+                    <i class="fas fa-arrow-down text-3xl text-blue-400 mb-3"></i>
+                    <h4 class="font-semibold text-gray-900 mb-2">\${orgNames[orgId]}</h4>
+                    <p class="text-gray-600 text-sm mb-4">평가 항목을 여기로 드래그하세요</p>
+                    <div id="assigned-items-\${orgId}" class="space-y-2">
+                        <!-- 배정된 항목들이 여기에 표시됨 -->
+                    </div>
+                </div>
+            \`;
+            
+            // 드롭 이벤트 설정
+            dropZone.ondragover = (e) => { 
+                e.preventDefault(); 
+                dropZone.classList.add('bg-blue-50', 'border-blue-300');
+            };
+            dropZone.ondragleave = (e) => {
+                dropZone.classList.remove('bg-blue-50', 'border-blue-300');
+            };
+            dropZone.ondrop = (e) => {
+                e.preventDefault();
+                handleDrop(e, orgId);
+                dropZone.classList.remove('bg-blue-50', 'border-blue-300');
+            };
+        }
+
+        function handleDragStart(e) {
+            const itemId = e.target.dataset.itemId;
+            const itemType = e.target.dataset.itemType;
+            const itemName = e.target.querySelector('span').textContent;
+            
+            e.dataTransfer.setData('application/json', JSON.stringify({
+                id: itemId,
+                type: itemType,
+                name: itemName
+            }));
+        }
+
+        function handleDrop(e, orgId) {
+            const data = JSON.parse(e.dataTransfer.getData('application/json'));
+            addItemToOrganization(orgId, data);
+        }
+
+        function addItemToOrganization(orgId, item) {
+            const container = document.getElementById(\`assigned-items-\${orgId}\`);
+            if (!container) return;
+            
+            // 중복 검사
+            if (container.querySelector(\`[data-assigned-item="\${item.id}"]\`)) {
+                showNotification('이미 배정된 항목입니다.', 'warning');
+                return;
+            }
+            
+            const itemEl = document.createElement('div');
+            itemEl.className = 'flex items-center justify-between p-2 bg-white rounded border border-gray-200';
+            itemEl.dataset.assignedItem = item.id;
+            itemEl.innerHTML = \`
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-\${item.type === 'quantitative' ? 'chart-bar text-blue-500' : 'comments text-green-500'}"></i>
+                    <span class="text-sm font-medium text-gray-900">\${item.name}</span>
+                </div>
+                <button onclick="removeItemFromOrganization('\${orgId}', '\${item.id}')" 
+                        class="text-red-500 hover:text-red-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            \`;
+            
+            container.appendChild(itemEl);
+            showNotification(\`\${item.name}이(가) 배정되었습니다.\`, 'success');
+        }
+
+        function removeItemFromOrganization(orgId, itemId) {
+            const container = document.getElementById(\`assigned-items-\${orgId}\`);
+            const item = container.querySelector(\`[data-assigned-item="\${itemId}"]\`);
+            if (item) {
+                item.remove();
+                showNotification('항목이 제거되었습니다.', 'info');
+            }
+        }
+
+        // 미리보기 기능
+        function runEvaluationPreview() {
+            const orgId = document.getElementById('previewOrganization').value;
+            const container = document.getElementById('previewResult');
+            
+            // 시뮬레이션 데이터 생성
+            const simulationData = generateSimulationData(orgId);
+            displayPreviewResult(container, simulationData);
+        }
+
+        function generateSimulationData(orgId) {
+            const orgNames = {
+                'sales_team': 'Sales팀',
+                'cx_team': 'CX팀'
+            };
+            
+            // 샘플 사용자
+            const sampleUsers = [
+                { name: '최민', email: 'choi@company.com' },
+                { name: '김다민', email: 'kim@company.com' },
+                { name: '박진희', email: 'park@company.com' }
+            ];
+            
+            return {
+                organization: orgNames[orgId],
+                users: sampleUsers,
+                quantitativeItems: Object.values(quantitativeItems).length > 0 ? 
+                    Object.values(quantitativeItems).slice(0, 3) : [
+                        { name: '목표 달성률', weight: 40 },
+                        { name: 'KPI 성과', weight: 35 },
+                        { name: '프로젝트 기여도', weight: 25 }
+                    ],
+                qualitativeItems: Object.values(qualitativeItems).length > 0 ? 
+                    Object.values(qualitativeItems).slice(0, 4) : [
+                        { name: '리더십', scale: '1-5' },
+                        { name: '의사소통', scale: '1-5' },
+                        { name: '전문성', scale: '1-5' },
+                        { name: '협업 능력', scale: '1-5' }
+                    ]
+            };
+        }
+
+        function displayPreviewResult(container, data) {
+            container.innerHTML = \`
+                <div class="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-lg mb-6">
+                    <h4 class="text-lg font-semibold text-indigo-900 mb-2">\${data.organization} 평가 시뮬레이션</h4>
+                    <p class="text-indigo-700">총 \${data.users.length}명의 구성원에 대한 평가 예시</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- 정량평가 -->
+                    <div class="bg-white p-4 rounded-lg border border-gray-200">
+                        <h5 class="font-semibold text-blue-900 mb-3">
+                            <i class="fas fa-chart-bar mr-2"></i>정량평가 항목
+                        </h5>
+                        <div class="space-y-2">
+                            \${data.quantitativeItems.map(item => \`
+                                <div class="flex justify-between items-center p-2 bg-blue-50 rounded">
+                                    <span class="text-sm font-medium">\${item.name}</span>
+                                    <span class="text-xs text-blue-600">가중치: \${item.weight}%</span>
+                                </div>
+                            \`).join('')}
+                        </div>
+                    </div>
+
+                    <!-- 정성평가 -->
+                    <div class="bg-white p-4 rounded-lg border border-gray-200">
+                        <h5 class="font-semibold text-green-900 mb-3">
+                            <i class="fas fa-comments mr-2"></i>정성평가 항목
+                        </h5>
+                        <div class="space-y-2">
+                            \${data.qualitativeItems.map(item => \`
+                                <div class="flex justify-between items-center p-2 bg-green-50 rounded">
+                                    <span class="text-sm font-medium">\${item.name}</span>
+                                    <span class="text-xs text-green-600">\${item.scale}</span>
+                                </div>
+                            \`).join('')}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 bg-white p-4 rounded-lg border border-gray-200">
+                    <h5 class="font-semibold text-gray-900 mb-3">평가 대상자</h5>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        \${data.users.map(user => \`
+                            <div class="p-3 bg-gray-50 rounded-lg text-center">
+                                <i class="fas fa-user-circle text-2xl text-gray-400 mb-2"></i>
+                                <div class="font-medium text-gray-900">\${user.name}</div>
+                                <div class="text-xs text-gray-600">\${user.email}</div>
+                            </div>
+                        \`).join('')}
+                    </div>
+                </div>
+            \`;
+        }
+
+        // 전역 함수로 즉시 등록 (onclick 이벤트에서 사용)
+        console.log('🔧 전역 함수들을 window 객체에 등록 중...');
+        
+        // 핵심 탭 함수들 먼저 등록
+        if (typeof window.showTab === 'function') {
+            console.log('✅ showTab 이미 등록됨');
+        } else {
+            console.log('⚠️ showTab 재등록 필요');
+        }
+        
+        if (typeof window.showSettingsTab === 'function') {
+            console.log('✅ showSettingsTab 이미 등록됨');
+        } else {
+            console.log('⚠️ showSettingsTab 재등록 필요');
+        }
+        
+        // 평가 시스템 함수들
+        window.switchEvaluationTab = switchEvaluationTab;
+        window.startEvaluationWizard = startEvaluationWizard;
+        window.quickAddQuantitativeItem = quickAddQuantitativeItem;
+        window.quickAddQualitativeItem = quickAddQualitativeItem;
+        window.quickEditItem = quickEditItem;
+        window.duplicateItem = duplicateItem;
+        window.deleteEvaluationItem = deleteEvaluationItem;
+        window.closeQuickAddModal = closeQuickAddModal;
+        window.closeEvaluationWizard = closeEvaluationWizard;
+        window.selectEvaluationType = selectEvaluationType;
+        window.nextWizardStep = nextWizardStep;
+        window.previousWizardStep = previousWizardStep;
+        window.updateWeightDisplay = updateWeightDisplay;
+        window.loadSalesTargets = loadSalesTargets;
+        window.selectOrganization = selectOrganization;
+        window.handleDragStart = handleDragStart;
+        window.removeItemFromOrganization = removeItemFromOrganization;
+        window.runEvaluationPreview = runEvaluationPreview;
+        window.saveAssignments = saveAssignments;
+        
+        // 기존 함수 호환성
+        window.addQuantitativeItem = addQuantitativeItem;
+        window.addQualitativeItem = addQualitativeItem;
+        window.editQuantitativeItem = editQuantitativeItem;
+        window.editQualitativeItem = editQualitativeItem;
+        window.deleteQuantitativeItem = deleteQuantitativeItem;
+        window.deleteQualitativeItem = deleteQualitativeItem;
+        window.showEvaluationTargetModal = showEvaluationTargetModal;
+        window.editEvaluationTarget = editEvaluationTarget;
+        
+        console.log('✅ 모든 평가 시스템 함수 등록 완료');
+
+        // DOMContentLoaded 이벤트 핸들러
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 DOM 로드 완료 - 시스템 전체 초기화 시작...');
+            
+            try {
+                // 모든 탭 버튼에 이벤트 리스너 안전하게 추가
+                setupTabEventListeners();
+                
+                // 모든 설정 탭 버튼에 이벤트 리스너 추가
+                setupSettingsTabEventListeners();
+                
+                // 평가 시스템 탭 버튼에 이벤트 리스너 추가
+                setupEvaluationTabEventListeners();
+                
+                // 조직 폼 처리
+                setupOrganizationForm();
+                
+                console.log('✅ 모든 이벤트 리스너 등록 완료');
+            } catch (error) {
+                console.error('❌ 이벤트 리스너 등록 오류:', error);
+            }
+            
+            // 페이지 로드 시 초기화
+            setTimeout(() => {
+                try {
+                    // Sales 목표 데이터 로드
+                    if (document.getElementById('salesTargetsContainer')) {
+                        loadSalesTargets();
+                    }
+                    
+                    // 평가 시스템 초기화 (기본적으로 대시보드 탭이 활성화됨)
+                    if (document.getElementById('evaluation-dashboard')) {
+                        updateDashboardStats();
+                    }
+                    
+                    console.log('✅ 평가 시스템 초기화 완료');
+                } catch (error) {
+                    console.error('❌ 평가 시스템 초기화 오류:', error);
+                }
+            }, 1000);
+        });
+
+        // 안전한 이벤트 리스너 등록 함수들
+        function setupTabEventListeners() {
+            // 메인 탭 버튼들
+            document.querySelectorAll('button[onclick*="showTab"]').forEach(button => {
+                if (button && !button.dataset.listenerAdded) {
+                    const onclickAttr = button.getAttribute('onclick');
+                    if (onclickAttr) {
+                        const tabName = onclickAttr.match(/showTab\('([^']+)'\)/);
+                        if (tabName && tabName[1]) {
+                            button.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                try {
+                                    if (typeof window.showTab === 'function') {
+                                        window.showTab(tabName[1]);
+                                    }
+                                } catch (error) {
+                                    console.error('Tab click error:', error);
+                                }
+                            });
+                            button.dataset.listenerAdded = 'true';
+                            console.log('✅ 탭 리스너 등록:', tabName[1]);
+                        }
+                    }
+                }
+            });
+        }
+
+        function setupSettingsTabEventListeners() {
+            // 시스템 설정 탭 버튼들
+            document.querySelectorAll('button[onclick*="showSettingsTab"]').forEach(button => {
+                if (button && !button.dataset.listenerAdded) {
+                    const onclickAttr = button.getAttribute('onclick');
+                    if (onclickAttr) {
+                        const tabName = onclickAttr.match(/showSettingsTab\('([^']+)'\)/);
+                        if (tabName && tabName[1]) {
+                            button.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                try {
+                                    if (typeof window.showSettingsTab === 'function') {
+                                        window.showSettingsTab(tabName[1]);
+                                    }
+                                } catch (error) {
+                                    console.error('Settings tab click error:', error);
+                                }
+                            });
+                            button.dataset.listenerAdded = 'true';
+                            console.log('✅ 설정 탭 리스너 등록:', tabName[1]);
+                        }
+                    }
+                }
+            });
+        }
+
+        function setupEvaluationTabEventListeners() {
+            // 평가 시스템 탭 버튼들
+            document.querySelectorAll('button[onclick*="switchEvaluationTab"]').forEach(button => {
+                if (button && !button.dataset.listenerAdded) {
+                    const onclickAttr = button.getAttribute('onclick');
+                    if (onclickAttr) {
+                        const tabName = onclickAttr.match(/switchEvaluationTab\('([^']+)'\)/);
+                        if (tabName && tabName[1]) {
+                            button.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                try {
+                                    if (typeof switchEvaluationTab === 'function') {
+                                        switchEvaluationTab(tabName[1]);
+                                    }
+                                } catch (error) {
+                                    console.error('Evaluation tab click error:', error);
+                                }
+                            });
+                            button.dataset.listenerAdded = 'true';
+                            console.log('✅ 평가 탭 리스너 등록:', tabName[1]);
+                        }
+                    }
+                }
+            });
+        }
+
+        function setupOrganizationForm() {
+            try {
+                const orgForm = document.getElementById('organizationForm');
+                if (!orgForm) {
+                    console.log('⚠️ organizationForm을 찾을 수 없음');
+                    return;
+                }
+                
+                if (orgForm.dataset.listenerAdded) return;
+                
                 orgForm.addEventListener('submit', async function(e) {
                     e.preventDefault();
                     
-                    if (!isAdmin()) {
-                        showToast('관리자 권한이 필요합니다.', 'error');
-                        return;
-                    }
-                    
-                    const formData = new FormData(e.target);
-                    const orgData = {
-                        name: document.getElementById('orgName').value.trim(),
-                        type: document.getElementById('orgType').value,
-                        parentId: document.getElementById('parentOrg').value || null,
-                        description: document.getElementById('orgDescription').value.trim()
-                    };
-                    
-                    if (!orgData.name) {
-                        showToast('조직명을 입력해주세요.', 'error');
-                        return;
-                    }
-                    
                     try {
-                        const response = await fetch('/api/organizations', {
+                        if (!isAdmin()) return showToast('관리자 권한이 필요합니다.', 'error');
+                        
+                        const nameEl = document.getElementById('orgName');
+                        const typeEl = document.getElementById('orgType');
+                        const parentEl = document.getElementById('parentOrg');
+                        const descEl = document.getElementById('orgDescription');
+                        
+                        if (!nameEl || !typeEl || !descEl) {
+                            console.error('폼 요소를 찾을 수 없음');
+                            return;
+                        }
+                        
+                        const orgData = {
+                            name: nameEl.value.trim(),
+                            type: typeEl.value,
+                            parentId: parentEl ? parentEl.value || null : null,
+                            description: descEl.value.trim()
+                        };
+                        
+                        if (!orgData.name) return showToast('조직명을 입력해주세요.', 'error');
+                        
+                        const data = await apiCall('/api/organizations', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(orgData)
                         });
                         
-                        const data = await response.json();
-                        
+                        showToast(data.success ? '조직이 추가되었습니다.' : data.message || '조직 추가 실패', data.success ? 'success' : 'error');
                         if (data.success) {
-                            showToast('조직이 추가되었습니다.', 'success');
                             e.target.reset();
-                            refreshOrganization();
-                        } else {
-                            showToast(data.message || '조직 추가에 실패했습니다.', 'error');
+                            if (typeof refreshOrganization === 'function') {
+                                refreshOrganization();
+                            }
                         }
                     } catch (error) {
                         console.error('조직 추가 오류:', error);
                         showToast('조직 추가 중 오류가 발생했습니다.', 'error');
                     }
                 });
+                
+                orgForm.dataset.listenerAdded = 'true';
+                console.log('✅ 조직 폼 리스너 등록 완료');
+            } catch (error) {
+                console.error('❌ 조직 폼 설정 오류:', error);
             }
-        });
+        }
 
-        console.log('✅ 인라인 JavaScript 모듈이 로드되었습니다.');
+        console.log('🎉 모든 JavaScript 모듈이 성공적으로 로드되었습니다!');
         </script>
+
+        <!-- 평가 항목 등록 위저드 모달 -->
+        <div id="evaluationWizardModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+            <div class="bg-white rounded-lg w-full max-w-2xl max-h-screen overflow-y-auto">
+                <!-- 위저드 헤더 -->
+                <div class="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 rounded-t-lg">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xl font-semibold text-white">
+                            <i class="fas fa-magic mr-3"></i>평가 항목 등록 마법사
+                        </h3>
+                        <button onclick="closeEvaluationWizard()" class="text-white hover:text-gray-200">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- 진행 단계 표시 -->
+                    <div class="mt-4">
+                        <div class="flex items-center space-x-4 text-white">
+                            <div class="flex items-center">
+                                <div id="step1-indicator" class="w-8 h-8 bg-white bg-opacity-30 rounded-full flex items-center justify-center text-sm font-semibold">1</div>
+                                <span class="ml-2 text-sm">유형 선택</span>
+                            </div>
+                            <div class="flex-1 h-0.5 bg-white bg-opacity-30"></div>
+                            <div class="flex items-center">
+                                <div id="step2-indicator" class="w-8 h-8 bg-white bg-opacity-30 rounded-full flex items-center justify-center text-sm font-semibold">2</div>
+                                <span class="ml-2 text-sm">기본 정보</span>
+                            </div>
+                            <div class="flex-1 h-0.5 bg-white bg-opacity-30"></div>
+                            <div class="flex items-center">
+                                <div id="step3-indicator" class="w-8 h-8 bg-white bg-opacity-30 rounded-full flex items-center justify-center text-sm font-semibold">3</div>
+                                <span class="ml-2 text-sm">상세 설정</span>
+                            </div>
+                            <div class="flex-1 h-0.5 bg-white bg-opacity-30"></div>
+                            <div class="flex items-center">
+                                <div id="step4-indicator" class="w-8 h-8 bg-white bg-opacity-30 rounded-full flex items-center justify-center text-sm font-semibold">4</div>
+                                <span class="ml-2 text-sm">확인</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 위저드 본체 -->
+                <div class="p-6">
+                    <!-- 1단계: 평가 유형 선택 -->
+                    <div id="wizard-step-1" class="wizard-step">
+                        <div class="text-center mb-6">
+                            <h4 class="text-lg font-semibold text-gray-900 mb-2">어떤 유형의 평가 항목을 추가하시겠습니까?</h4>
+                            <p class="text-gray-600">평가 유형에 따라 설정할 수 있는 옵션이 달라집니다.</p>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <button onclick="selectEvaluationType('quantitative')" class="evaluation-type-card p-6 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors">
+                                <div class="text-center">
+                                    <i class="fas fa-chart-bar text-blue-500 text-3xl mb-3"></i>
+                                    <h5 class="font-semibold text-gray-900 mb-2">정량평가</h5>
+                                    <p class="text-sm text-gray-600">숫자로 측정 가능한 객관적 평가</p>
+                                    <div class="mt-3 text-xs text-gray-500">
+                                        예: 매출 달성률, KPI 성과 등
+                                    </div>
+                                </div>
+                            </button>
+                            
+                            <button onclick="selectEvaluationType('qualitative')" class="evaluation-type-card p-6 border-2 border-gray-200 rounded-lg hover:border-green-500 hover:bg-green-50 transition-colors">
+                                <div class="text-center">
+                                    <i class="fas fa-comments text-green-500 text-3xl mb-3"></i>
+                                    <h5 class="font-semibold text-gray-900 mb-2">정성평가</h5>
+                                    <p class="text-sm text-gray-600">주관적 판단이 필요한 평가</p>
+                                    <div class="mt-3 text-xs text-gray-500">
+                                        예: 리더십, 의사소통 능력 등
+                                    </div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 2단계: 기본 정보 -->
+                    <div id="wizard-step-2" class="wizard-step hidden">
+                        <div class="mb-6">
+                            <h4 class="text-lg font-semibold text-gray-900 mb-2">평가 항목의 기본 정보를 입력해주세요</h4>
+                            <p class="text-gray-600">명확하고 이해하기 쉬운 이름과 설명을 작성해주세요.</p>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-tag mr-1"></i>항목명 *
+                                </label>
+                                <input type="text" id="wizardItemName" 
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" 
+                                       placeholder="예: 월별 매출 달성률">
+                                <div class="mt-1 text-xs text-gray-500">평가 대상자가 쉽게 이해할 수 있는 명확한 이름을 입력하세요</div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-align-left mr-1"></i>상세 설명 *
+                                </label>
+                                <textarea id="wizardItemDescription" 
+                                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" 
+                                          rows="3" placeholder="이 평가 항목이 무엇을 측정하는지 자세히 설명해주세요"></textarea>
+                                <div class="mt-1 text-xs text-gray-500">평가 기준과 측정 방법을 포함해서 작성하면 좋습니다</div>
+                            </div>
+
+                            <div id="wizardCategorySection" class="hidden">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-folder mr-1"></i>카테고리
+                                </label>
+                                <select id="wizardCategory" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                    <option value="sales">매출 관련</option>
+                                    <option value="customer">고객 관련</option>
+                                    <option value="project">프로젝트 관련</option>
+                                    <option value="personal">개인 역량</option>
+                                    <option value="team">팀워크</option>
+                                    <option value="other">기타</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3단계: 상세 설정 -->
+                    <div id="wizard-step-3" class="wizard-step hidden">
+                        <div class="mb-6">
+                            <h4 class="text-lg font-semibold text-gray-900 mb-2">평가 방식을 설정해주세요</h4>
+                            <p class="text-gray-600">평가 유형에 맞는 세부 설정을 진행합니다.</p>
+                        </div>
+                        
+                        <!-- 정량평가 상세 설정 -->
+                        <div id="quantitative-settings" class="hidden">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        <i class="fas fa-percentage mr-1"></i>가중치 (%)
+                                    </label>
+                                    <div class="flex items-center space-x-3">
+                                        <input type="range" id="wizardWeightSlider" min="0" max="100" value="30" 
+                                               class="flex-1" oninput="updateWeightDisplay(this.value)">
+                                        <div class="bg-blue-100 px-3 py-2 rounded-lg min-w-16 text-center">
+                                            <span id="wizardWeightDisplay" class="font-semibold text-blue-600">30%</span>
+                                        </div>
+                                    </div>
+                                    <div class="mt-1 text-xs text-gray-500">전체 정량평가에서 차지하는 비중을 설정하세요</div>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        <i class="fas fa-ruler mr-1"></i>측정 단위
+                                    </label>
+                                    <select id="wizardUnit" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                        <option value="percent">백분율 (%)</option>
+                                        <option value="number">숫자</option>
+                                        <option value="currency">금액 (원)</option>
+                                        <option value="count">건수</option>
+                                        <option value="ratio">비율</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        <i class="fas fa-bullseye mr-1"></i>목표 설정 방식
+                                    </label>
+                                    <div class="space-y-2">
+                                        <label class="flex items-center">
+                                            <input type="radio" name="targetType" value="fixed" checked class="mr-2">
+                                            <span>고정 목표값</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="radio" name="targetType" value="individual" class="mr-2">
+                                            <span>개인별 목표값</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 정성평가 상세 설정 -->
+                        <div id="qualitative-settings" class="hidden">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        <i class="fas fa-star mr-1"></i>평가 척도
+                                    </label>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <label class="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                                            <input type="radio" name="scale" value="1-5" checked class="mr-3">
+                                            <div>
+                                                <div class="font-medium">1-5점 척도</div>
+                                                <div class="text-xs text-gray-500">가장 일반적인 방식</div>
+                                            </div>
+                                        </label>
+                                        <label class="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                                            <input type="radio" name="scale" value="1-10" class="mr-3">
+                                            <div>
+                                                <div class="font-medium">1-10점 척도</div>
+                                                <div class="text-xs text-gray-500">세밀한 평가 가능</div>
+                                            </div>
+                                        </label>
+                                        <label class="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                                            <input type="radio" name="scale" value="ABCD" class="mr-3">
+                                            <div>
+                                                <div class="font-medium">A-B-C-D 등급</div>
+                                                <div class="text-xs text-gray-500">직관적인 등급제</div>
+                                            </div>
+                                        </label>
+                                        <label class="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                                            <input type="radio" name="scale" value="custom" class="mr-3">
+                                            <div>
+                                                <div class="font-medium">사용자 정의</div>
+                                                <div class="text-xs text-gray-500">직접 척도 설정</div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        <i class="fas fa-list-ul mr-1"></i>평가 기준
+                                    </label>
+                                    <textarea id="wizardCriteria" 
+                                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" 
+                                              rows="3" placeholder="각 점수별 평가 기준을 설명해주세요 (선택사항)"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4단계: 확인 -->
+                    <div id="wizard-step-4" class="wizard-step hidden">
+                        <div class="mb-6">
+                            <h4 class="text-lg font-semibold text-gray-900 mb-2">설정 내용을 확인해주세요</h4>
+                            <p class="text-gray-600">아래 정보가 정확한지 확인하고 저장해주세요.</p>
+                        </div>
+                        
+                        <div id="wizardSummary" class="bg-gray-50 p-4 rounded-lg">
+                            <!-- 동적으로 채워짐 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 위저드 하단 버튼 -->
+                <div class="border-t border-gray-200 p-6">
+                    <div class="flex justify-between">
+                        <button id="wizardPrevBtn" onclick="previousWizardStep()" class="px-6 py-2 text-gray-600 hover:text-gray-800 disabled:opacity-50" disabled>
+                            <i class="fas fa-arrow-left mr-2"></i>이전
+                        </button>
+                        <div class="flex space-x-3">
+                            <button onclick="closeEvaluationWizard()" class="px-6 py-2 text-gray-600 hover:text-gray-800">
+                                취소
+                            </button>
+                            <button id="wizardNextBtn" onclick="nextWizardStep()" class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                                다음 <i class="fas fa-arrow-right ml-2"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 빠른 추가 모달 (기존 간단한 모달) -->
+        <div id="quickAddModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-full max-w-md">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900" id="quickAddTitle">평가 항목 빠른 추가</h3>
+                    <button onclick="closeQuickAddModal()" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <form id="quickAddForm" class="space-y-4">
+                    <input type="hidden" id="quickAddType">
+                    <input type="hidden" id="quickAddItemId">
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">항목명</label>
+                        <input type="text" id="quickAddName" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                               placeholder="평가 항목 이름">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">설명</label>
+                        <textarea id="quickAddDescription" 
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                  rows="2" placeholder="간단한 설명"></textarea>
+                    </div>
+                    
+                    <div id="quickAddWeightSection">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">가중치 (%)</label>
+                        <input type="number" id="quickAddWeight" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                               min="0" max="100" value="20">
+                    </div>
+
+                    <div id="quickAddScaleSection" class="hidden">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">평가 방식</label>
+                        <select id="quickAddScale" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                            <option value="1-5">1-5점 척도</option>
+                            <option value="1-10">1-10점 척도</option>
+                            <option value="ABCD">A-B-C-D 등급</option>
+                        </select>
+                    </div>
+                    
+                    <div class="flex space-x-3 pt-4">
+                        <button type="submit" class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                            추가
+                        </button>
+                        <button type="button" onclick="closeQuickAddModal()" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors">
+                            취소
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 드래그 앤 드롭 배정 모달 -->
+        <div id="assignmentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+            <div class="bg-white rounded-lg w-full max-w-4xl max-h-screen overflow-y-auto">
+                <div class="bg-gradient-to-r from-purple-500 to-indigo-600 p-6 rounded-t-lg">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xl font-semibold text-white">
+                            <i class="fas fa-users-cog mr-3"></i>평가 항목 배정
+                        </h3>
+                        <button onclick="closeAssignmentModal()" class="text-white hover:text-gray-200">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="p-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- 조직 선택 -->
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-gray-900 mb-3">
+                                <i class="fas fa-sitemap mr-2"></i>조직 선택
+                            </h4>
+                            <div id="assignmentOrgList" class="space-y-2">
+                                <!-- 동적으로 채워짐 -->
+                            </div>
+                        </div>
+
+                        <!-- 평가 항목 -->
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-gray-900 mb-3">
+                                <i class="fas fa-list-alt mr-2"></i>평가 항목
+                            </h4>
+                            <div id="assignmentItemPool" class="space-y-2 max-h-96 overflow-y-auto">
+                                <!-- 동적으로 채워짐 -->
+                            </div>
+                        </div>
+
+                        <!-- 배정 결과 -->
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-gray-900 mb-3">
+                                <i class="fas fa-clipboard-check mr-2"></i>배정 결과
+                            </h4>
+                            <div id="assignmentDropZone" class="min-h-64 border-2 border-dashed border-gray-300 rounded-lg p-4 text-center text-gray-500">
+                                조직을 선택하고 평가 항목을 드래그해서 배정하세요
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
+                        <button onclick="closeAssignmentModal()" class="px-6 py-2 text-gray-600 hover:text-gray-800">
+                            취소
+                        </button>
+                        <button onclick="saveAssignments()" class="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                            <i class="fas fa-save mr-2"></i>배정 저장
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </body>
     </html>
   `)
@@ -3516,5 +6480,18 @@ app.get('/dashboard', (c) => {
 
 // 이메일 서비스 초기화
 initializeEmailService()
+
+// Hono 미들웨어: 환경 변수 초기화
+app.use('*', async (c, next) => {
+  // 이메일 서비스가 초기화되지 않은 경우 초기화
+  if (!emailService) {
+    console.log('⚙️ Initializing email service in middleware...')
+    await initializeEmailService(c.env)
+  }
+  await next()
+})
+
+// Static files 처리
+app.use('/static/*', serveStatic({ root: './public' }))
 
 export default app
