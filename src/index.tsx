@@ -5322,10 +5322,6 @@ app.get('/dashboard', (c) => {
 
         // 빠른 추가 기능들
         function quickAddQuantitativeItem() {
-            // 🔍 디버깅: 새로운 함수가 호출되는지 확인
-            alert('새로운 quickAddQuantitativeItem 함수 호출됨!');
-            console.log('🚀 새로운 quickAddQuantitativeItem 함수 실행');
-            
             // 타입 및 기본값 설정
             document.getElementById('quickAddType').value = 'quantitative';
             document.getElementById('quickAddItemId').value = '';
