@@ -1475,7 +1475,7 @@ app.get('/', (c) => {
             <!-- 왼쪽: Cloud Business Department 브랜딩 -->
             <div class="hidden lg:block flex-1 max-w-md">
                 <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-xl">
-                    <img src="https://page.gensparksite.com/v1/base64_upload/0d3209e7a4569a99177eb0f4783c8fdc" 
+                    <img src="https://cdn1.genspark.ai/user-upload-image/11_generated/c8e33d8e-a59e-411a-80bc-1841bb03881a" 
                          alt="Cloud Business Department" 
                          class="w-full object-contain mb-6">
                     <div class="space-y-4 text-center">
@@ -1484,20 +1484,7 @@ app.get('/', (c) => {
                             eformsign과 함께하는 디지털 전환의 중심<br>
                             체계적인 성과 관리로 미래를 준비합니다
                         </p>
-                        <div class="flex justify-center gap-4 pt-4">
-                            <div class="text-center">
-                                <div class="text-2xl font-bold text-blue-600">500+</div>
-                                <div class="text-sm text-gray-500">고객사</div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-2xl font-bold text-teal-600">99.9%</div>
-                                <div class="text-sm text-gray-500">서비스 가동률</div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-2xl font-bold text-purple-600">24/7</div>
-                                <div class="text-sm text-gray-500">기술 지원</div>
-                            </div>
-                        </div>
+
                     </div>
                 </div>
             </div>
@@ -1506,7 +1493,7 @@ app.get('/', (c) => {
             <div class="w-full max-w-md">
                 <!-- 모바일용 로고 (작은 화면에서만 표시) -->
                 <div class="lg:hidden text-center mb-6">
-                    <img src="https://page.gensparksite.com/v1/base64_upload/0d3209e7a4569a99177eb0f4783c8fdc" 
+                    <img src="https://cdn1.genspark.ai/user-upload-image/11_generated/c8e33d8e-a59e-411a-80bc-1841bb03881a" 
                          alt="Cloud Business Department" 
                          class="mx-auto h-32 object-contain">
                 </div>
