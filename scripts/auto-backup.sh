@@ -61,7 +61,7 @@ IMPORTANT_FILES=(
     "src/index.tsx"
     "package.json"
     "wrangler.toml"
-    "index.html"
+    "dashboard.html"
     "public/js/app.js"
     "public/css/main.css"
 )
