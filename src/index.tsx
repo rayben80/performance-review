@@ -2035,6 +2035,10 @@ app.get('/dashboard', (c) => {
             }
         </style>
         <!-- 빠른 추가 모달 모듈 -->
+        <script src="/js/localStorage-manager.js"></script>
+        <script src="/js/evaluation-grid-manager.js"></script>
+        <script src="/js/evaluation-tab-fix.js"></script>
+        <script src="/js/evaluation-item-actions.js"></script>
         <script src="/js/quickAddModal.js"></script>
     </head>
     <body class="bg-gray-50 text-gray-800">
@@ -3833,6 +3837,27 @@ app.get('/dashboard', (c) => {
                             }
                             break;
                             
+                        case 'evaluationManagement':
+                            // 평가 항목 관리 탭으로 전환 시 그리드 자동 로드
+                            console.log('📊 평가 항목 관리 탭 활성화');
+                            setTimeout(() => {
+                                try {
+                                    // LocalStorageManager와 EvaluationGridManager 확인
+                                    if (typeof window.EvaluationGridManager !== 'undefined') {
+                                        console.log('🔄 평가 항목 그리드 자동 로드');
+                                        window.EvaluationGridManager.loadEvaluationItemsGrid();
+                                    } else if (typeof window.loadEvaluationItemsGrid === 'function') {
+                                        console.log('🔄 loadEvaluationItemsGrid 직접 호출');
+                                        window.loadEvaluationItemsGrid();
+                                    } else {
+                                        console.warn('⚠️ EvaluationGridManager가 아직 로드되지 않음');
+                                    }
+                                } catch (error) {
+                                    console.error('❌ 평가 항목 그리드 로드 오류:', error);
+                                }
+                            }, 200);
+                            break;
+                            
                         case 'systemSettings':
                             // 시스템 설정은 기본적으로 조직 설정 탭 표시
                             setTimeout(() => {
@@ -4913,16 +4938,53 @@ app.get('/dashboard', (c) => {
                     </div>
                 \`;
                 
-                // API에서 데이터 가져오기
-                const response = await fetch('/api/evaluation-items');
-                const data = await response.json();
+                // LocalStorageManager를 사용하여 데이터 가져오기
+                let allItems = [];
                 
-                if (!data.success) {
-                    throw new Error(data.message || '데이터를 불러올 수 없습니다.');
+                // LocalStorageManager가 사용 가능한지 확인
+                if (typeof window.LocalStorageManager !== 'undefined') {
+                    allItems = window.LocalStorageManager.getItems();
+                    console.log('🆕 LocalStorageManager로 로드:', allItems.length, '개 항목');
+                    window.LocalStorageManager.debug(); // 디버깅 정보 출력
+                } else {
+                    // 폴백: 직접 localStorage 사용
+                    try {
+                        const storedItems = localStorage.getItem('evaluationItems');
+                        if (storedItems) {
+                            allItems = JSON.parse(storedItems);
+                            console.log('📦 localStorage 직접 로드:', allItems.length, '개 항목');
+                        }
+                    } catch (err) {
+                        console.error('❌ localStorage 읽기 실패:', err);
+                    }
+                }
+                
+                // API에서도 데이터 가져오기 (병합을 위해)
+                try {
+                    const response = await fetch('/api/evaluation-items');
+                    const data = await response.json();
+                    
+                    if (data.success && data.items && data.items.length > 0) {
+                        // API 데이터와 localStorage 데이터 병합
+                        const apiItemIds = new Set(data.items.map(item => item.id));
+                        const localItemIds = new Set(allItems.map(item => item.id));
+                        
+                        // API에만 있는 항목 추가
+                        data.items.forEach(item => {
+                            if (!localItemIds.has(item.id)) {
+                                allItems.push(item);
+                            }
+                        });
+                        
+                        // 병합된 데이터를 localStorage에 저장
+                        localStorage.setItem('evaluationItems', JSON.stringify(allItems));
+                    }
+                } catch (err) {
+                    console.warn('API 호출 실패, localStorage 데이터만 사용:', err);
                 }
                 
                 // 정량평가 항목만 필터링
-                const quantitativeItems = data.items.filter(item => item.type === 'quantitative');
+                const quantitativeItems = allItems.filter(item => item.type === 'quantitative');
                 
                 if (quantitativeItems.length === 0) {
                     container.innerHTML = \`
@@ -5008,16 +5070,53 @@ app.get('/dashboard', (c) => {
                     </div>
                 \`;
                 
-                // API에서 데이터 가져오기
-                const response = await fetch('/api/evaluation-items');
-                const data = await response.json();
+                // LocalStorageManager를 사용하여 데이터 가져오기
+                let allItems = [];
                 
-                if (!data.success) {
-                    throw new Error(data.message || '데이터를 불러올 수 없습니다.');
+                // LocalStorageManager가 사용 가능한지 확인
+                if (typeof window.LocalStorageManager !== 'undefined') {
+                    allItems = window.LocalStorageManager.getItems();
+                    console.log('🆕 LocalStorageManager로 로드:', allItems.length, '개 항목');
+                    window.LocalStorageManager.debug(); // 디버깅 정보 출력
+                } else {
+                    // 폴백: 직접 localStorage 사용
+                    try {
+                        const storedItems = localStorage.getItem('evaluationItems');
+                        if (storedItems) {
+                            allItems = JSON.parse(storedItems);
+                            console.log('📦 localStorage 직접 로드:', allItems.length, '개 항목');
+                        }
+                    } catch (err) {
+                        console.error('❌ localStorage 읽기 실패:', err);
+                    }
+                }
+                
+                // API에서도 데이터 가져오기 (병합을 위해)
+                try {
+                    const response = await fetch('/api/evaluation-items');
+                    const data = await response.json();
+                    
+                    if (data.success && data.items && data.items.length > 0) {
+                        // API 데이터와 localStorage 데이터 병합
+                        const apiItemIds = new Set(data.items.map(item => item.id));
+                        const localItemIds = new Set(allItems.map(item => item.id));
+                        
+                        // API에만 있는 항목 추가
+                        data.items.forEach(item => {
+                            if (!localItemIds.has(item.id)) {
+                                allItems.push(item);
+                            }
+                        });
+                        
+                        // 볕합된 데이터를 localStorage에 저장
+                        localStorage.setItem('evaluationItems', JSON.stringify(allItems));
+                    }
+                } catch (err) {
+                    console.warn('API 호출 실패, localStorage 데이터만 사용:', err);
                 }
                 
                 // 정성평가 항목만 필터링
-                const qualitativeItems = data.items.filter(item => item.type === 'qualitative');
+                const qualitativeItems = allItems.filter(item => item.type === 'qualitative');
                 
                 if (qualitativeItems.length === 0) {
                     container.innerHTML = \`

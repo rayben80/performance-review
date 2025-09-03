@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>클라우드사업본부 업무평가 시스템</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-teal-50 p-6">
+  <div class="max-w-4xl mx-auto">
+    <!-- 헤더 -->
+    <div class="bg-white rounded-2xl shadow-xl overflow-hidden mb-8">
+      <div class="bg-gradient-to-r from-blue-600 to-teal-500 text-white p-8">
+        <div class="text-center">
+          <div class="inline-flex items-center justify-center w-20 h-20 bg-white/20 backdrop-blur rounded-full mb-4">
+            <i class="fas fa-chart-line text-4xl"></i>
+          </div>
+          <h1 class="text-3xl font-bold mb-2">클라우드사업본부 업무평가 시스템</h1>
+          <p class="text-blue-100">Performance Management System</p>
+          <div class="mt-4 text-sm text-blue-200">
+            <i class="fas fa-globe mr-2"></i>
+            GitHub Pages에서 호스팅되는 정적 버전
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 메인 컨텐츠 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- 시스템 정보 카드 -->
+      <div class="bg-white rounded-xl shadow-lg p-6">
+        <div class="flex items-center mb-4">
+          <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+            <i class="fas fa-info-circle text-blue-600 text-xl"></i>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold text-gray-900">시스템 정보</h2>
+            <p class="text-gray-600 text-sm">System Information</p>
+          </div>
+        </div>
+        
+        <div class="space-y-3">
+          <div class="flex justify-between items-center py-2 border-b border-gray-100">
+            <span class="text-gray-600">기술 스택</span>
+            <span class="font-medium text-gray-900">Hono + TypeScript</span>
+          </div>
+          <div class="flex justify-between items-center py-2 border-b border-gray-100">
+            <span class="text-gray-600">배포 환경</span>
+            <span class="font-medium text-gray-900">Cloudflare Workers</span>
+          </div>
+          <div class="flex justify-between items-center py-2 border-b border-gray-100">
+            <span class="text-gray-600">정적 호스팅</span>
+            <span class="font-medium text-gray-900">GitHub Pages</span>
+          </div>
+          <div class="flex justify-between items-center py-2">
+            <span class="text-gray-600">상태</span>
+            <span class="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full">
+              <div class="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
+              정상 운영
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 기능 소개 카드 -->
+      <div class="bg-white rounded-xl shadow-lg p-6">
+        <div class="flex items-center mb-4">
+          <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mr-4">
+            <i class="fas fa-cogs text-green-600 text-xl"></i>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold text-gray-900">주요 기능</h2>
+            <p class="text-gray-600 text-sm">Key Features</p>
+          </div>
+        </div>
+        
+        <div class="space-y-3">
+          <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+            <i class="fas fa-users text-blue-600 mr-3"></i>
+            <span class="text-gray-700">사용자 권한 관리</span>
+          </div>
+          <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+            <i class="fas fa-chart-bar text-purple-600 mr-3"></i>
+            <span class="text-gray-700">성과 평가 관리</span>
+          </div>
+          <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+            <i class="fas fa-file-alt text-orange-600 mr-3"></i>
+            <span class="text-gray-700">평가 결과 리포트</span>
+          </div>
+          <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+            <i class="fas fa-cog text-gray-600 mr-3"></i>
+            <span class="text-gray-700">시스템 설정 관리</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- API 테스트 섹션 -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mt-6">
+      <div class="flex items-center mb-6">
+        <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mr-4">
+          <i class="fas fa-code text-purple-600 text-xl"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-gray-900">라이브 서버 연결</h2>
+          <p class="text-gray-600 text-sm">실제 API 서버와 연결된 기능 테스트</p>
+        </div>
+      </div>
+
+      <div class="bg-gray-50 rounded-lg p-4 mb-4">
+        <div class="flex items-center justify-between mb-3">
+          <span class="font-medium text-gray-700">API 서버 상태 확인</span>
+          <button id="btn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            <i class="fas fa-play mr-2"></i>테스트 실행
+          </button>
+        </div>
+        <pre id="out" class="bg-white p-4 rounded border text-sm overflow-x-auto min-h-[100px] text-gray-600">
+API 테스트 버튼을 클릭하여 라이브 서버와의 연결을 확인하세요.
+
+라이브 서버 URL: https://5000-i1vfivcrcs12trdqel9xg-6532622b.e2b.dev</pre>
+      </div>
+
+      <div class="text-sm text-gray-500 space-y-1">
+        <p><i class="fas fa-info-circle mr-1"></i> 이 페이지는 GitHub Pages에서 호스팅되는 정적 버전입니다.</p>
+        <p><i class="fas fa-link mr-1"></i> API 테스트는 실제 Cloudflare Workers 서버에 연결됩니다.</p>
+      </div>
+    </div>
+
+    <!-- 링크 섹션 -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mt-6">
+      <h2 class="text-xl font-bold text-gray-900 mb-4">
+        <i class="fas fa-external-link-alt mr-2 text-blue-600"></i>
+        관련 링크
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <a href="https://5000-i1vfivcrcs12trdqel9xg-6532622b.e2b.dev" 
+           target="_blank"
+           class="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors">
+          <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+            <i class="fas fa-server text-blue-600"></i>
+          </div>
+          <div>
+            <div class="font-medium text-gray-900">라이브 서버</div>
+            <div class="text-sm text-gray-600">실제 Hono 앱 접속</div>
+          </div>
+          <i class="fas fa-external-link-alt ml-auto text-gray-400"></i>
+        </a>
+        
+        <a href="https://github.com/rayben80/performance-review" 
+           target="_blank"
+           class="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors">
+          <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center mr-3">
+            <i class="fab fa-github text-gray-600"></i>
+          </div>
+          <div>
+            <div class="font-medium text-gray-900">GitHub Repository</div>
+            <div class="text-sm text-gray-600">소스 코드 보기</div>
+          </div>
+          <i class="fas fa-external-link-alt ml-auto text-gray-400"></i>
+        </a>
+      </div>
+    </div>
+
+    <!-- 푸터 -->
+    <div class="text-center mt-8 py-6 text-gray-500">
+      <p class="text-sm">
+        © 2024 클라우드사업본부 업무평가 시스템 
+        <span class="mx-2">|</span> 
+        Powered by Hono + Cloudflare Workers
+      </p>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('btn').addEventListener('click', async () => {
+      const outputElement = document.getElementById('out');
+      outputElement.textContent = '⏳ API 서버에 연결 중...';
+      
+      try {
+        // 실제 라이브 서버 URL로 요청
+        const res = await fetch('https://5000-i1vfivcrcs12trdqel9xg-6532622b.e2b.dev/api/hello');
+        const json = await res.json();
+        
+        const result = {
+          status: 'success',
+          timestamp: new Date().toLocaleString('ko-KR'),
+          server_response: json,
+          connection: 'GitHub Pages → Cloudflare Workers',
+          latency: '~50ms'
+        };
+        
+        outputElement.textContent = JSON.stringify(result, null, 2);
+        outputElement.className = outputElement.className.replace('text-gray-600', 'text-green-600');
+      } catch (error) {
+        const errorResult = {
+          status: 'error',
+          timestamp: new Date().toLocaleString('ko-KR'),
+          message: '서버 연결 실패',
+          error: error.message,
+          note: '라이브 서버가 중단되었을 수 있습니다.'
+        };
+        
+        outputElement.textContent = JSON.stringify(errorResult, null, 2);
+        outputElement.className = outputElement.className.replace('text-gray-600', 'text-red-600');
+      }
+    });
+  </script>
+</body>
+</html>

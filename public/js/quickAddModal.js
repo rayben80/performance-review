@@ -5,8 +5,8 @@ const QuickAddModal = (function() {
     // 모달 HTML 템플릿
     const modalHTML = `
         <!-- 🎨 현대적 카드형 빠른 추가 모달 -->
-        <div id="quickAddModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50 animate-fadeIn backdrop-blur-sm">
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden animate-slideUp transform transition-all duration-300">
+        <div id="quickAddModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50 animate-fadeIn backdrop-blur-sm p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden animate-slideUp transform transition-all duration-300 my-8">
                 
                 <!-- 모달 헤더 with Progress Indicator -->
                 <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6 relative overflow-hidden">
@@ -37,8 +37,8 @@ const QuickAddModal = (function() {
                 </div>
                 
                 <!-- 모달 콘텐츠 -->
-                <div class="p-8 overflow-y-auto max-h-[calc(90vh-120px)]">
-                    <form id="quickAddForm" class="space-y-8">
+                <div class="p-6 overflow-y-auto" style="max-height: calc(85vh - 200px);">
+                    <form id="quickAddForm" class="space-y-6">
                         <input type="hidden" id="quickAddType">
                         <input type="hidden" id="quickAddItemId">
                         
@@ -243,7 +243,7 @@ const QuickAddModal = (function() {
                 </div>
                 
                 <!-- 모달 푸터 -->
-                <div class="bg-gray-50 px-8 py-6 border-t border-gray-200 flex items-center justify-between">
+                <div class="bg-gray-50 px-6 py-4 border-t border-gray-200 flex items-center justify-between flex-shrink-0">
                     <div class="text-sm text-gray-500">
                         <i class="fas fa-info-circle mr-1"></i>
                         모든 필수 항목(*)을 입력해주세요
@@ -251,11 +251,11 @@ const QuickAddModal = (function() {
                     
                     <div class="flex space-x-3">
                         <button type="button" onclick="QuickAddModal.close()" 
-                                class="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors border border-gray-300">
+                                class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors border border-gray-300">
                             <i class="fas fa-times mr-2"></i>취소
                         </button>
                         <button type="submit" form="quickAddForm" id="quickAddSubmitBtn"
-                                class="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-[1.02]">
+                                class="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl">
                             <i class="fas fa-save mr-2"></i>저장하기
                         </button>
                     </div>
@@ -477,6 +477,28 @@ const QuickAddModal = (function() {
             
             if (result.success) {
                 console.log('✅ 평가 항목 생성 성공:', result.item);
+                
+                // LocalStorageManager를 사용하여 저장
+                if (typeof window.LocalStorageManager !== 'undefined') {
+                    const success = window.LocalStorageManager.addItem(result.item);
+                    if (success) {
+                        console.log('✅ LocalStorageManager로 저장 성공');
+                        window.LocalStorageManager.debug();
+                    } else {
+                        console.error('❌ LocalStorageManager 저장 실패');
+                    }
+                } else {
+                    // 폴백: 직접 localStorage 사용
+                    try {
+                        let storedItems = JSON.parse(localStorage.getItem('evaluationItems') || '[]');
+                        console.log('📋 기존 저장된 항목 수:', storedItems.length);
+                        storedItems.push(result.item);
+                        localStorage.setItem('evaluationItems', JSON.stringify(storedItems));
+                        console.log('📦 localStorage에 저장 완료! 총 항목 수:', storedItems.length);
+                    } catch (err) {
+                        console.error('localStorage 저장 실패:', err);
+                    }
+                }
                 
                 // 성공 애니메이션
                 submitButton.innerHTML = '<i class="fas fa-check mr-2"></i>저장 완료!';
