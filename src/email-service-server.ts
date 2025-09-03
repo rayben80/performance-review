@@ -25,7 +25,7 @@ export class ServerEmailService {
 
   private initializeTransporter() {
     try {
-      this.transporter = nodemailer.createTransporter({
+      this.transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
           user: this.config.gmailUser,
